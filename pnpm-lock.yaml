@@ -93,10 +93,10 @@ importers:
         specifier: 1.1.6
         version: 1.1.6(@types/react-dom@19.1.7(@types/react@19.1.9))(@types/react@19.1.9)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       '@react-three/drei':
-        specifier: latest
+        specifier: ^10.6.1
         version: 10.6.1(kewc5ni2np4pq7t3utgssmjjju)
       '@react-three/fiber':
-        specifier: latest
+        specifier: ^9.3.0
         version: 9.3.0(@types/react@19.1.9)(expo-asset@11.1.7(expo@53.0.20(@babel/core@7.28.0)(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(expo-file-system@18.1.11(expo@53.0.20(@babel/core@7.28.0)(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1)))(expo-gl@15.1.7(expo@53.0.20(@babel/core@7.28.0)(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(expo@53.0.20(@babel/core@7.28.0)(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react-native@0.80.2(@babel/core@7.28.0)(@types/react@19.1.9)(react@19.1.1))(react@19.1.1)(three@0.179.1)
       autoprefixer:
         specifier: ^10.4.20
@@ -174,7 +174,7 @@ importers:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
       three:
-        specifier: latest
+        specifier: ^0.179.1
         version: 0.179.1
       vaul:
         specifier: ^0.9.6

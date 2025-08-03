@@ -1,15 +1,15 @@
-"use client"
+"use client";
 
-import { useRef, useEffect, useState } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import type * as THREE from "three"
+import { useRef, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import type * as THREE from "three";
+import { backgrounds } from "@/components/background/background-preview-selector";
 
-type GameMode = "two-player" | "vs-ai" | "online"
+type GameMode = "two-player" | "vs-ai" | "online";
 
 interface TitlePageProps {
-  onStartGame: (mode: GameMode) => void
+  onStartGame: (mode: GameMode) => void;
 }
 
 const GAME_MODES = [
@@ -37,99 +37,36 @@ const GAME_MODES = [
     color: "from-orange-500 to-red-600",
     available: true,
   },
-]
-
-// 3D回転するキューブコンポーネント
-function RotatingCube({
-  position,
-  color,
-  speed = 1,
-}: { position: [number, number, number]; color: string; speed?: number }) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * speed * 0.5
-      meshRef.current.rotation.y = state.clock.elapsedTime * speed * 0.3
-      meshRef.current.rotation.z = state.clock.elapsedTime * speed * 0.2
-    }
-  })
-
-  return (
-    <mesh ref={meshRef} position={position}>
-      <boxGeometry args={[0.6, 0.6, 0.6]} />
-      <meshStandardMaterial color={color} metalness={0.3} roughness={0.2} transparent opacity={0.7} />
-    </mesh>
-  )
-}
-
-// 浮遊する球体コンポーネント
-function FloatingSphere({
-  position,
-  color,
-  speed = 1,
-}: { position: [number, number, number]; color: string; speed?: number }) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed) * 0.2
-      meshRef.current.rotation.x = state.clock.elapsedTime * speed * 0.2
-      meshRef.current.rotation.y = state.clock.elapsedTime * speed * 0.4
-    }
-  })
-
-  return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.3, 32, 32]} />
-      <meshStandardMaterial color={color} metalness={0.5} roughness={0.1} transparent opacity={0.8} />
-    </mesh>
-  )
-}
-
-// 3D背景シーン
-function BackgroundScene() {
-  return (
-    <>
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[10, 10, 5]} intensity={0.5} />
-      <pointLight position={[-10, -10, -5]} intensity={0.2} color="#4f46e5" />
-      <pointLight position={[10, -10, 5]} intensity={0.2} color="#ec4899" />
-
-      {/* 回転するキューブ群 */}
-      <RotatingCube position={[-3, 1.5, -2]} color="#ef4444" speed={0.8} />
-      <RotatingCube position={[3, -0.5, -3]} color="#3b82f6" speed={1.2} />
-      <RotatingCube position={[-1.5, -1.5, -4]} color="#22c55e" speed={0.6} />
-      <RotatingCube position={[2.5, 2, -2]} color="#a855f7" speed={1.0} />
-
-      {/* 浮遊する球体群 */}
-      <FloatingSphere position={[-2.5, -0.5, -1]} color="#f97316" speed={1.5} />
-      <FloatingSphere position={[1.5, 0.5, -2]} color="#ec4899" speed={0.8} />
-      <FloatingSphere position={[-0.5, 2, -3]} color="#06b6d4" speed={1.2} />
-      <FloatingSphere position={[3, 0, -1]} color="#eab308" speed={0.9} />
-    </>
-  )
-}
+];
 
 export function TitlePage({ onStartGame }: TitlePageProps) {
-  const [hoveredMode, setHoveredMode] = useState<string | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [hoveredMode, setHoveredMode] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [randomBackground, setRandomBackground] = useState<any>(null);
 
   useEffect(() => {
     // ページロード時のアニメーション
-    const timer = setTimeout(() => setIsLoaded(true), 100)
-    return () => clearTimeout(timer)
-  }, [])
+    const timer = setTimeout(() => setIsLoaded(true), 100);
+
+    // ランダムに背景を選択
+    const randomIndex = Math.floor(Math.random() * backgrounds.length);
+    setRandomBackground(backgrounds[randomIndex]);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // BackgroundComponentが準備されるまで何も表示しない
+  if (!randomBackground) return null;
+
+  const BackgroundComponent = randomBackground.component;
 
   return (
     <>
       <title>3D Connect Four - 3D4目並べゲーム</title>
-      <div className="w-full min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        {/* 3D背景 */}
-        <div className="fixed inset-0 opacity-20">
-          <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
-            <BackgroundScene />
-          </Canvas>
+      <div className="relative min-h-screen w-full overflow-hidden bg-black">
+        {/* バックグラウンドビジュアル */}
+        <div className="absolute inset-0 z-0">
+          <BackgroundComponent />
         </div>
 
         {/* グリッド背景パターン */}
@@ -151,7 +88,9 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
           <div className="container mx-auto px-4 py-8 md:py-12">
             <div
               className={`max-w-4xl mx-auto transition-all duration-1000 ${
-                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+                isLoaded
+                  ? "opacity-100 translate-y-0"
+                  : "opacity-0 translate-y-8"
               }`}
             >
               {/* タイトルセクション */}
@@ -171,7 +110,9 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                 </div>
 
                 <div className="mt-4 md:mt-6 space-y-2">
-                  <p className="text-xl md:text-2xl lg:text-3xl font-bold text-white/90">3D4目並べゲーム</p>
+                  <p className="text-xl md:text-2xl lg:text-3xl font-bold text-white/90">
+                    3D4目並べゲーム
+                  </p>
                   <p className="text-base md:text-lg text-white/70 max-w-md mx-auto">
                     立体空間で繰り広げる、新次元の戦略バトル
                   </p>
@@ -189,8 +130,12 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
               <Card className="bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl mb-8">
                 <CardContent className="p-6 md:p-8">
                   <div className="text-center mb-6 md:mb-8">
-                    <h2 className="text-xl md:text-2xl font-bold text-white mb-2">ゲームモードを選択</h2>
-                    <p className="text-white/70 text-sm md:text-base">あなたの挑戦を選んでください</p>
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                      ゲームモードを選択
+                    </h2>
+                    <p className="text-white/70 text-sm md:text-base">
+                      あなたの挑戦を選んでください
+                    </p>
                   </div>
 
                   <div className="grid gap-3 md:gap-4">
@@ -198,7 +143,9 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                       <div
                         key={mode.id}
                         className={`transition-all duration-300 ${
-                          isLoaded ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
+                          isLoaded
+                            ? "opacity-100 translate-x-0"
+                            : "opacity-0 translate-x-8"
                         }`}
                         style={{ transitionDelay: `${index * 150}ms` }}
                       >
@@ -215,7 +162,11 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                             hover:shadow-xl hover:shadow-purple-500/20
                             transform transition-all duration-300 hover:scale-[1.02]
                             border-2 border-white/20 hover:border-white/40
-                            ${hoveredMode === mode.id ? "scale-[1.02] shadow-xl shadow-purple-500/20" : ""}
+                            ${
+                              hoveredMode === mode.id
+                                ? "scale-[1.02] shadow-xl shadow-purple-500/20"
+                                : ""
+                            }
                           `}
                         >
                           {/* 背景グロー効果 */}
@@ -226,8 +177,12 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                               {mode.icon}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-lg md:text-xl font-bold text-white mb-1">{mode.name}</div>
-                              <div className="text-white/80 text-sm md:text-base">{mode.description}</div>
+                              <div className="text-lg md:text-xl font-bold text-white mb-1">
+                                {mode.name}
+                              </div>
+                              <div className="text-white/80 text-sm md:text-base">
+                                {mode.description}
+                              </div>
                             </div>
                             <div className="text-white/60 transform transition-transform duration-300 group-hover:translate-x-1 text-lg">
                               →
@@ -236,7 +191,9 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
 
                           {!mode.available && (
                             <div className="absolute top-2 right-2">
-                              <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-full">準備中</span>
+                              <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded-full">
+                                準備中
+                              </span>
                             </div>
                           )}
                         </Button>
@@ -259,26 +216,36 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm md:text-base">
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300">
                       <div className="text-xl md:text-2xl mb-2">🎲</div>
-                      <div className="text-white font-medium mb-1">立体空間</div>
-                      <div className="text-white/70 text-xs md:text-sm">4×4×4の立方体で4つ連続を目指そう</div>
+                      <div className="text-white font-medium mb-1">
+                        立体空間
+                      </div>
+                      <div className="text-white/70 text-xs md:text-sm">
+                        4×4×4の立方体で4つ連続を目指そう
+                      </div>
                     </div>
 
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300">
                       <div className="text-xl md:text-2xl mb-2">📐</div>
                       <div className="text-white font-medium mb-1">全方向</div>
-                      <div className="text-white/70 text-xs md:text-sm">縦・横・奥行き・対角線すべてが有効</div>
+                      <div className="text-white/70 text-xs md:text-sm">
+                        縦・横・奥行き・対角線すべてが有効
+                      </div>
                     </div>
 
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300 sm:col-span-2 lg:col-span-1">
                       <div className="text-xl md:text-2xl mb-2">🖱️</div>
                       <div className="text-white font-medium mb-1">操作</div>
-                      <div className="text-white/70 text-xs md:text-sm">マウスで視点を回転・ズーム可能</div>
+                      <div className="text-white/70 text-xs md:text-sm">
+                        マウスで視点を回転・ズーム可能
+                      </div>
                     </div>
                   </div>
 
                   {/* フッター */}
                   <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-white/10 text-center">
-                    <p className="text-white/50 text-sm md:text-base">🚀 新次元の戦略ゲームを体験しよう</p>
+                    <p className="text-white/50 text-sm md:text-base">
+                      🚀 新次元の戦略ゲームを体験しよう
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -311,5 +278,5 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
         </div>
       </div>
     </>
-  )
+  );
 }
