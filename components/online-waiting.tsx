@@ -49,7 +49,7 @@ export function OnlineWaiting({
   const currentPlayer = room.players.find((p) => p.id === playerId)
   const otherPlayer = room.players.find((p) => p.id !== playerId)
   const isHost = currentPlayer?.isHost || false
-  const canStart = room.players.length === 2 && isHost
+  const canStart = room.players.length === 2
 
   return (
     <div className="w-full h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -147,7 +147,7 @@ export function OnlineWaiting({
               </Button>
             ) : (
               <Button disabled size="lg" className="w-full">
-                {room.players.length < 2 ? `プレイヤーを待機中${dots}` : "ホストがゲームを開始します"}
+                {room.players.length < 2 ? `プレイヤーを待機中${dots}` : "どちらのプレイヤーでもゲームを開始できます"}
               </Button>
             )}
 

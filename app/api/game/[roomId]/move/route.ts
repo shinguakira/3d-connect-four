@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { gameManager } from "@/lib/game-manager"
 
-export async function POST(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   try {
     const { playerId, x, z } = await request.json()
-    const roomId = params.roomId
+    const { roomId } = await params
 
     const move = {
       playerId,

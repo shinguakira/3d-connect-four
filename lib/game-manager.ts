@@ -13,6 +13,7 @@ class GameManager {
       currentPlayer: 1,
       winner: null,
       gameOver: false,
+      gameStarted: false,
       createdAt: new Date(),
       lastActivity: new Date(),
       settings: {
@@ -40,10 +41,29 @@ class GameManager {
 
   makeMove(roomId: string, playerId: string, move: GameMove): GameRoom | null {
     const room = this.rooms.get(roomId)
-    if (!room || room.gameOver) return null
+    if (!room || room.gameOver) {
+      console.log("Move rejected: Room not found or game over", { roomId, gameOver: room?.gameOver })
+      return null
+    }
+
+    // Check if game has been started
+    if (!room.gameStarted) {
+      console.log("Move rejected: Game not started yet", { roomId, gameStarted: room.gameStarted })
+      return null
+    }
 
     const playerIndex = room.players.findIndex((p) => p.id === playerId)
+    console.log("Move attempt:", {
+      playerId,
+      playerIndex,
+      currentPlayer: room.currentPlayer,
+      playerIndexPlusOne: playerIndex + 1,
+      isValidTurn: playerIndex !== -1 && playerIndex + 1 === room.currentPlayer,
+      gameStarted: room.gameStarted
+    })
+    
     if (playerIndex === -1 || playerIndex + 1 !== room.currentPlayer) {
+      console.log("Move rejected: Invalid turn or player not found")
       return null // 不正な手番
     }
 
