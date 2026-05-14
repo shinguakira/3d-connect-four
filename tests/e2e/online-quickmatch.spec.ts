@@ -1,52 +1,106 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { gotoOnline, pressStartGame, resetServer } from "./helpers"
 
-const ROOM_TIMEOUT = 30_000
-
-async function gotoQuickMatch(page: Page, name: string) {
-  await page.goto("/")
-  await page.getByRole("button", { name: /オンライン/ }).first().click()
-  await expect(page.getByText("オンライン対戦")).toBeVisible()
-  await page.getByLabel("プレイヤー名").fill(name)
-  // Quick tab is the default, but click to be safe.
-  await page.getByRole("button", { name: "クイック", exact: true }).click()
-  await page.getByRole("button", { name: "クイックマッチ開始" }).click()
-}
-
-test.describe("Online quick-match (two browsers)", () => {
-  // Two contexts share the dev server's in-memory GameManager.
-  // Long timeouts cover Next.js dev's on-demand route compilation.
+test.describe("Online: quick-match", () => {
   test.setTimeout(120_000)
 
-  test("both players match into the same waiting room and can start the game", async ({ browser }) => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request)
+  })
+
+  test("first quick-match player creates the room (matched=false)", async ({ page }) => {
+    await page.goto("/")
+    await page.getByRole("button", { name: /オンライン/ }).first().click()
+    await page.getByLabel("プレイヤー名").fill("Solo")
+    await page.getByRole("button", { name: "クイック", exact: true }).click()
+
+    const responsePromise = page.waitForResponse(
+      (r) => r.url().endsWith("/api/game/quick-match") && r.request().method() === "POST",
+    )
+    await page.getByRole("button", { name: "クイックマッチ開始" }).click()
+    const body = await (await responsePromise).json()
+    expect(body.success).toBe(true)
+    expect(body.matched).toBe(false)
+    expect(body.room.players).toHaveLength(1)
+    await expect(page.getByText(/ルーム:/)).toBeVisible({ timeout: 15_000 })
+  })
+
+  test("second quick-match player joins the waiting room (matched=true)", async ({ browser }) => {
     const ctxA = await browser.newContext()
     const ctxB = await browser.newContext()
     const pageA = await ctxA.newPage()
     const pageB = await ctxB.newPage()
 
     try {
-      // Player A creates the room (no waiting opponent yet).
-      await gotoQuickMatch(pageA, "Alice")
-      await expect(pageA.getByText(/ルーム:/)).toBeVisible({ timeout: ROOM_TIMEOUT })
-      await expect(pageA.getByText("Alice")).toBeVisible()
+      const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" })
+      await expect(pageA.getByText(`ルーム: ${a.roomId}`)).toBeVisible({ timeout: 15_000 })
 
-      // Player B joins the waiting room created by A.
-      await gotoQuickMatch(pageB, "Bob")
-      await expect(pageB.getByText(/ルーム:/)).toBeVisible({ timeout: ROOM_TIMEOUT })
+      const b = await gotoOnline(pageB, { kind: "quick", name: "Bob" })
+      expect(b.roomId).toBe(a.roomId) // matched into Alice's room
 
-      // Both pages now see both players (SSE-driven).
-      await expect(pageA.getByText("Bob")).toBeVisible({ timeout: ROOM_TIMEOUT })
-      await expect(pageB.getByText("Alice")).toBeVisible({ timeout: ROOM_TIMEOUT })
-      await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: ROOM_TIMEOUT })
-      await expect(pageB.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: ROOM_TIMEOUT })
+      // Both pages converge on the 2/2 player list.
+      await expect(pageA.getByText("Bob")).toBeVisible({ timeout: 15_000 })
+      await expect(pageB.getByText("Alice")).toBeVisible({ timeout: 15_000 })
+      await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 })
+      await expect(pageB.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 })
+    } finally {
+      await ctxA.close()
+      await ctxB.close()
+    }
+  })
 
-      // Either player can press start; have A do it.
-      await pageA.getByRole("button", { name: /ゲーム開始/ }).click()
+  test("third quick-match player creates a new room (does not crash an existing pair)", async ({ browser }) => {
+    const ctxA = await browser.newContext()
+    const ctxB = await browser.newContext()
+    const ctxC = await browser.newContext()
+    const pageA = await ctxA.newPage()
+    const pageB = await ctxB.newPage()
+    const pageC = await ctxC.newPage()
 
-      // Both clients transition to the game canvas.
-      await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: ROOM_TIMEOUT })
-      await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: ROOM_TIMEOUT })
+    try {
+      const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" })
+      const b = await gotoOnline(pageB, { kind: "quick", name: "Bob" })
+      expect(b.roomId).toBe(a.roomId)
+
+      const c = await gotoOnline(pageC, { kind: "quick", name: "Carol" })
+      expect(c.roomId).not.toBe(a.roomId)
+      await expect(pageC.getByText(`ルーム: ${c.roomId}`)).toBeVisible({ timeout: 15_000 })
+      await expect(pageC.getByText("プレイヤー (1/2)")).toBeVisible()
+
+      // Pair AB still see each other; Carol does not appear in their list.
+      await expect(pageA.getByText("Bob")).toBeVisible({ timeout: 15_000 })
+      await expect(pageA.getByText("Carol")).toHaveCount(0)
+    } finally {
+      await ctxA.close()
+      await ctxB.close()
+      await ctxC.close()
+    }
+  })
+
+  test("either player can press 'ゲーム開始' and both transition to the canvas", async ({ browser }) => {
+    const ctxA = await browser.newContext()
+    const ctxB = await browser.newContext()
+    const pageA = await ctxA.newPage()
+    const pageB = await ctxB.newPage()
+
+    try {
+      const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" })
+      await gotoOnline(pageB, { kind: "quick", name: "Bob" })
+      await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 })
+      await expect(pageB.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 })
+
+      // Have the non-host (B) press start.
+      await pressStartGame(pageB)
+
+      await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 })
+      await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 })
       await expect(pageA.getByText("オンライン").first()).toBeVisible()
       await expect(pageB.getByText("オンライン").first()).toBeVisible()
+
+      // Header shows player 1 (Alice) is to move first.
+      await expect(pageA.getByText("Alice").first()).toBeVisible()
+      await expect(pageB.getByText("Alice").first()).toBeVisible()
+      void a // (handle is unused after this point but kept for clarity)
     } finally {
       await ctxA.close()
       await ctxB.close()

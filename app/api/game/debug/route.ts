@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
 
+// Test-only: wipe all rooms. Disabled in production.
+export async function POST() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ success: false, error: "disabled" }, { status: 403 });
+  }
+  gameManager.__resetForTests();
+  return NextResponse.json({ success: true });
+}
+
 export async function GET() {
   try {
     const allRooms = gameManager.getAllRooms();
