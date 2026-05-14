@@ -109,9 +109,15 @@ class GameManager {
 
     const player = room.players.find((p) => p.id === playerId)
     if (player) {
+      // Only update timestamps if connection status actually changed
+      const connectionChanged = player.connected !== connected
       player.connected = connected
-      player.lastSeen = new Date()
-      room.lastActivity = new Date()
+      
+      if (connectionChanged) {
+        player.lastSeen = new Date()
+        room.lastActivity = new Date()
+        console.log(`Player ${playerId} connection changed to ${connected} in room ${roomId}`)
+      }
     }
 
     return room

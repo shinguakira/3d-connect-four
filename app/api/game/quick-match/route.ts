@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
     };
 
     const room = gameManager.createRoom(player);
+    console.log(`New room created for quick match: ${room.id}, player: ${player.id}`);
+    
+    // Small delay to ensure room is fully persisted before frontend connects
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     return NextResponse.json({
       success: true,
@@ -70,6 +74,9 @@ export async function POST(request: NextRequest) {
         players: room.players,
         gameState: room.gameState,
         currentPlayer: room.currentPlayer,
+        gameStarted: room.gameStarted,
+        gameOver: room.gameOver,
+        winner: room.winner,
         settings: room.settings,
       },
       playerId: player.id,

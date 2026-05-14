@@ -33,8 +33,19 @@ export async function GET(
 
       // 初期ゲーム状態を送信
       const room = gameManager.getRoom(roomId);
+      console.log(`SSE connection established for room ${roomId}, room exists:`, !!room);
+      
       if (room) {
-        const roomState = JSON.stringify(room);
+        // Use the same state comparison logic as the periodic check
+        const stateForComparison = {
+          ...room,
+          lastActivity: undefined,
+          players: room.players.map(p => ({
+            ...p,
+            lastSeen: undefined
+          }))
+        };
+        const roomState = JSON.stringify(stateForComparison);
         lastKnownStates.set(roomId, roomState);
 
         const data = `data: ${JSON.stringify({
@@ -42,6 +53,16 @@ export async function GET(
           room,
         })}\n\n`;
         controller.enqueue(encoder.encode(data));
+        console.log(`Initial game state sent for room ${roomId}`);
+      } else {
+        console.log(`Room ${roomId} not found when establishing SSE connection`);
+        // Send an error event if room doesn't exist
+        const errorData = `data: ${JSON.stringify({
+          type: "error",
+          error: "Room not found",
+          roomId
+        })}\n\n`;
+        controller.enqueue(encoder.encode(errorData));
       }
 
       // 定期的にゲーム状態をチェック
@@ -58,8 +79,16 @@ export async function GET(
           gameManager.updatePlayerConnection(roomId, playerId, true);
         }
 
-        // Check if game state has changed
-        const currentRoomState = JSON.stringify(currentRoom);
+        // Check if game state has changed (excluding timestamp fields that change frequently)
+        const stateForComparison = {
+          ...currentRoom,
+          lastActivity: undefined, // Exclude frequently changing timestamp
+          players: currentRoom.players.map(p => ({
+            ...p,
+            lastSeen: undefined // Exclude frequently changing timestamp
+          }))
+        };
+        const currentRoomState = JSON.stringify(stateForComparison);
         const previousState = lastKnownStates.get(roomId);
 
         if (previousState !== currentRoomState) {
@@ -72,7 +101,7 @@ export async function GET(
             room: currentRoom,
           });
 
-          console.log(`Broadcasting state update for room ${roomId}`);
+          console.log(`Broadcasting meaningful state update for room ${roomId}`);
         }
       }, 2000); // 2秒ごとに状態チェック
 
