@@ -1,4 +1,5 @@
 import type { GameRoom, Player, GameMove } from "@/types/online"
+import { checkWinner, createEmptyBoard, dropY } from "@/lib/game-logic"
 
 class GameManager {
   private rooms = new Map<string, GameRoom>()
@@ -9,7 +10,7 @@ class GameManager {
     const room: GameRoom = {
       id: roomId,
       players: [hostPlayer],
-      gameState: this.createEmptyBoard(),
+      gameState: createEmptyBoard(),
       currentPlayer: 1,
       winner: null,
       gameOver: false,
@@ -41,53 +42,29 @@ class GameManager {
 
   makeMove(roomId: string, playerId: string, move: GameMove): GameRoom | null {
     const room = this.rooms.get(roomId)
-    if (!room || room.gameOver) {
-      console.log("Move rejected: Room not found or game over", { roomId, gameOver: room?.gameOver })
-      return null
-    }
-
-    // Check if game has been started
-    if (!room.gameStarted) {
-      console.log("Move rejected: Game not started yet", { roomId, gameStarted: room.gameStarted })
-      return null
-    }
+    if (!room || room.gameOver) return null
+    if (!room.gameStarted) return null
 
     const playerIndex = room.players.findIndex((p) => p.id === playerId)
-    console.log("Move attempt:", {
-      playerId,
-      playerIndex,
-      currentPlayer: room.currentPlayer,
-      playerIndexPlusOne: playerIndex + 1,
-      isValidTurn: playerIndex !== -1 && playerIndex + 1 === room.currentPlayer,
-      gameStarted: room.gameStarted
-    })
-    
     if (playerIndex === -1 || playerIndex + 1 !== room.currentPlayer) {
-      console.log("Move rejected: Invalid turn or player not found")
-      return null // 不正な手番
+      return null
     }
 
-    // 重力で駒を落とす
-    let y = -1
-    for (let i = 0; i < 4; i++) {
-      if (!room.gameState[move.x][i][move.z]) {
-        y = i
-        break
-      }
-    }
-
-    if (y === -1) return null // 列が満杯
+    const y = dropY(room.gameState, move.x, move.z)
+    if (y === -1) return null
 
     room.gameState[move.x][y][move.z] = room.currentPlayer
-    room.winner = this.checkWinner(room.gameState)
+    room.winner = checkWinner(room.gameState)
     room.gameOver = !!room.winner
-    room.currentPlayer = room.currentPlayer === 1 ? 2 : 1
+    if (!room.gameOver) {
+      room.currentPlayer = room.currentPlayer === 1 ? 2 : 1
+    }
     room.lastActivity = new Date()
 
     return room
   }
 
-  // 利用可能なルーム（1人のプレイヤーがいるルーム）を検索
+  // Find a room with a single waiting player (used by quick-match).
   findAvailableRoom(): GameRoom | null {
     for (const room of this.rooms.values()) {
       if (room.players.length === 1 && !room.gameOver) {
@@ -97,26 +74,26 @@ class GameManager {
     return null
   }
 
-  // 全ルーム一覧を取得（デバッグ用）
   getAllRooms(): GameRoom[] {
     return Array.from(this.rooms.values())
   }
 
-  // プレイヤーの接続状態を更新
-  updatePlayerConnection(roomId: string, playerId: string, connected: boolean): GameRoom | null {
+  updatePlayerConnection(
+    roomId: string,
+    playerId: string,
+    connected: boolean,
+  ): GameRoom | null {
     const room = this.rooms.get(roomId)
     if (!room) return null
 
     const player = room.players.find((p) => p.id === playerId)
     if (player) {
-      // Only update timestamps if connection status actually changed
       const connectionChanged = player.connected !== connected
       player.connected = connected
-      
+
       if (connectionChanged) {
         player.lastSeen = new Date()
         room.lastActivity = new Date()
-        console.log(`Player ${playerId} connection changed to ${connected} in room ${roomId}`)
       }
     }
 
@@ -127,21 +104,6 @@ class GameManager {
     return Math.random().toString(36).substring(2, 8).toUpperCase()
   }
 
-  private createEmptyBoard() {
-    return Array(4)
-      .fill(null)
-      .map(() =>
-        Array(4)
-          .fill(null)
-          .map(() => Array(4).fill(null)),
-      )
-  }
-
-  private checkWinner(board: any): any {
-    // 勝利判定ロジック（既存のものを使用）
-    return null
-  }
-
   getRoom(roomId: string): GameRoom | null {
     return this.rooms.get(roomId) || null
   }
@@ -150,10 +112,10 @@ class GameManager {
     this.rooms.delete(roomId)
   }
 
-  // 非アクティブなルームをクリーンアップ
+  // Drop rooms idle for >30 minutes.
   cleanupInactiveRooms(): void {
     const now = new Date()
-    const INACTIVE_THRESHOLD = 30 * 60 * 1000 // 30分
+    const INACTIVE_THRESHOLD = 30 * 60 * 1000
 
     for (const [roomId, room] of this.rooms.entries()) {
       if (now.getTime() - room.lastActivity.getTime() > INACTIVE_THRESHOLD) {
@@ -161,6 +123,23 @@ class GameManager {
       }
     }
   }
+
+  // Test-only: reset internal state.
+  __resetForTests(): void {
+    this.rooms.clear()
+    this.playerConnections.clear()
+  }
 }
 
-export const gameManager = new GameManager()
+export { GameManager }
+
+// Persist the singleton across Next.js dev's module reloads. Without this,
+// each lazily-compiled API route gets a fresh GameManager and rooms vanish
+// between routes (e.g. quick-match creates a room that events/route.ts
+// cannot see). Production serverless instances still need a real store.
+declare global {
+  // eslint-disable-next-line no-var
+  var __gameManager: GameManager | undefined
+}
+export const gameManager: GameManager =
+  globalThis.__gameManager ?? (globalThis.__gameManager = new GameManager())

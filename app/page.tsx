@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -728,6 +728,15 @@ export default function Component() {
     },
     [quickMatch]
   );
+
+  // Non-host transition: when the server broadcasts game-started via SSE,
+  // useOnlineGame flips `gameStarted` true. Move waiting players into the game.
+  useEffect(() => {
+    if (gameStarted && gameState === "online-waiting") {
+      setGameMode("online");
+      setGameState("playing");
+    }
+  }, [gameStarted, gameState]);
 
   const handleStartOnlineGame = useCallback(async () => {
     if (onlineRoom && onlineRoom.players.length === 2) {

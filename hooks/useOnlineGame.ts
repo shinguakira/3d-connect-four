@@ -34,6 +34,9 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
 
           if (data.type === "game-state" || data.type === "player-joined") {
             setRoom(data.room);
+            // Fallback: if the dedicated "game-started" burst was missed,
+            // the next periodic state poll still flips gameStarted.
+            if (data.room?.gameStarted) setGameStarted(true);
             console.log(`Online game event received: ${data.type}`, data);
           }
 
