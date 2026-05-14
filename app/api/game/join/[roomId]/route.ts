@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { gameManager } from "@/lib/game-manager"
+import { broadcastToRoom } from "../../[roomId]/events/route"
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   try {
@@ -20,6 +21,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!room) {
       return NextResponse.json({ success: false, error: "ルームが見つからないか満員です" }, { status: 404 })
     }
+
+    // Notify the host (and any other listeners) immediately, instead of
+    // waiting up to 2s for the periodic SSE state poll.
+    broadcastToRoom(roomId, {
+      type: "player-joined",
+      room: {
+        id: room.id,
+        players: room.players,
+        gameState: room.gameState,
+        currentPlayer: room.currentPlayer,
+        gameStarted: room.gameStarted,
+        gameOver: room.gameOver,
+        winner: room.winner,
+        settings: room.settings,
+      },
+      player,
+    })
 
     return NextResponse.json({
       success: true,
