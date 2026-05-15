@@ -3,7 +3,8 @@
 AI/開発エージェント向けのプロジェクトガイド。コーディングエージェント (Claude Code, Codex,
 Cursor, Copilot 等) が本リポジトリで作業するときに最初に読むべきドキュメント。
 
-ゲームのルール・体験面の詳細は [doc/game.md](doc/game.md) を参照。
+ゲームのルール・体験面の詳細は [doc/game.md](doc/game.md)、エンドユーザー
+向けの操作ガイドは [doc/user-manual.md](doc/user-manual.md) を参照。
 
 ## プロジェクト概要
 
