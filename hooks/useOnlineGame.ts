@@ -18,9 +18,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
     const maxRetries = 5;
 
     function connectEventSource() {
-      const eventSource = new EventSource(
-        `/api/game/${roomId}/events?playerId=${playerId}`
-      );
+      const eventSource = new EventSource(`/api/game/${roomId}/events?playerId=${playerId}`);
 
       eventSource.onopen = () => {
         setConnected(true);
@@ -45,8 +43,11 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
             setRoom(data.room);
             setGameStarted(true);
             const isHost = data.room?.players?.find((p: any) => p.id === playerId)?.isHost || false;
-            console.log(`Game started event received by ${isHost ? 'HOST' : 'NON-HOST'} player:`, data);
-            
+            console.log(
+              `Game started event received by ${isHost ? "HOST" : "NON-HOST"} player:`,
+              data,
+            );
+
             // Force UI update for all clients to ensure they transition to game screen
             const startTime = new Date().toISOString();
             console.log(`Game officially started at: ${startTime}`);
@@ -64,9 +65,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
         if (retryCount < maxRetries) {
           const delay = Math.min(1000 * 2 ** retryCount, 30000); // Exponential backoff with 30s max
           console.log(
-            `Reconnecting to game events in ${delay}ms (attempt ${
-              retryCount + 1
-            }/${maxRetries})`
+            `Reconnecting to game events in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
           );
 
           retryTimeout = setTimeout(() => {
@@ -137,7 +136,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
         return false;
       }
     },
-    [roomId, playerId]
+    [roomId, playerId],
   );
 
   const createRoom = useCallback(async (playerName: string) => {

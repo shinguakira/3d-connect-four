@@ -14,15 +14,15 @@ Cursor, Copilot 等) が本リポジトリで作業するときに最初に読�
 
 ## 技術スタック
 
-| 領域 | 技術 |
-|------|------|
-| フレームワーク | Next.js 15.2.4 (App Router) |
-| 言語 | TypeScript 5 (strict) |
-| UI | React 19, Radix UI, Tailwind CSS 3, shadcn/ui (`components.json`) |
-| 3D 描画 | Three.js 0.179, `@react-three/fiber` 9, `@react-three/drei` 10 |
-| フォーム / バリデーション | react-hook-form, zod |
-| アイコン | lucide-react |
-| パッケージマネージャ | pnpm (lockfile は `pnpm-lock.yaml`) |
+| 領域                      | 技術                                                              |
+| ------------------------- | ----------------------------------------------------------------- |
+| フレームワーク            | Next.js 15.2.4 (App Router)                                       |
+| 言語                      | TypeScript 5 (strict)                                             |
+| UI                        | React 19, Radix UI, Tailwind CSS 3, shadcn/ui (`components.json`) |
+| 3D 描画                   | Three.js 0.179, `@react-three/fiber` 9, `@react-three/drei` 10    |
+| フォーム / バリデーション | react-hook-form, zod                                              |
+| アイコン                  | lucide-react                                                      |
+| パッケージマネージャ      | pnpm (lockfile は `pnpm-lock.yaml`)                               |
 
 > **注意**: `next.config.mjs` で `eslint.ignoreDuringBuilds` と
 > `typescript.ignoreBuildErrors` が有効。ビルドが通るからといって型/Lint が
@@ -132,16 +132,16 @@ lockfile は pnpm。pnpm を優先。
 
 ### 触る場所の早見表
 
-| やりたいこと | 主に編集するファイル |
-|--------------|------------------|
-| ゲームルール / AI 強さ | `app/page.tsx` (ヘルパー関数群) |
+| やりたいこと              | 主に編集するファイル                                                  |
+| ------------------------- | --------------------------------------------------------------------- |
+| ゲームルール / AI 強さ    | `app/page.tsx` (ヘルパー関数群)                                       |
 | 3D 表示 / ピース形状 / 色 | `components/game-page.tsx`, `app/page.tsx` (`GamePiece`, `GridFrame`) |
-| タイトル/背景 | `components/title-page.tsx`, `components/background/*` |
-| オンライン UI | `components/online-menu.tsx`, `components/online-waiting.tsx` |
-| オンライン通信 | `hooks/useOnlineGame.ts` ↔ `app/api/game/**` |
-| サーバ状態 / 部屋管理 | `lib/game-manager.ts` |
-| 共通 UI | `components/ui/*` (shadcn の規約に従う) |
-| 型 | `types/GameBoard.ts`, `types/online.ts` |
+| タイトル/背景             | `components/title-page.tsx`, `components/background/*`                |
+| オンライン UI             | `components/online-menu.tsx`, `components/online-waiting.tsx`         |
+| オンライン通信            | `hooks/useOnlineGame.ts` ↔ `app/api/game/**`                          |
+| サーバ状態 / 部屋管理     | `lib/game-manager.ts`                                                 |
+| 共通 UI                   | `components/ui/*` (shadcn の規約に従う)                               |
+| 型                        | `types/GameBoard.ts`, `types/online.ts`                               |
 
 ### コーディング規約
 

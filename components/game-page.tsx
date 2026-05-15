@@ -1,34 +1,42 @@
-"use client"
+"use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { OrbitControls } from "@react-three/drei"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import * as THREE from "three"
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import * as THREE from "three";
 
-type Player = 1 | 2 | null
-type GameBoard = Player[][][]
-type GameMode = "two-player" | "vs-ai" | "online"
-type AIDifficulty = "easy" | "normal" | "hard"
-type PieceShape = "sphere" | "cube" | "cylinder" | "cone" | "octahedron" | "dodecahedron" | "torus" | "diamond"
+type Player = 1 | 2 | null;
+type GameBoard = Player[][][];
+type GameMode = "two-player" | "vs-ai" | "online";
+type AIDifficulty = "easy" | "normal" | "hard";
+type PieceShape =
+  | "sphere"
+  | "cube"
+  | "cylinder"
+  | "cone"
+  | "octahedron"
+  | "dodecahedron"
+  | "torus"
+  | "diamond";
 
 interface ReachLine {
-  positions: [number, number, number][]
-  player: Player
-  winningPosition: [number, number, number]
+  positions: [number, number, number][];
+  player: Player;
+  winningPosition: [number, number, number];
 }
 
 interface GamePageProps {
-  gameMode: GameMode
-  onBackToMenu: () => void
-  onlineRoom?: any
-  onlinePlayerId?: string | null
-  makeOnlineMove?: (x: number, z: number) => Promise<boolean>
+  gameMode: GameMode;
+  onBackToMenu: () => void;
+  onlineRoom?: any;
+  onlinePlayerId?: string | null;
+  makeOnlineMove?: (x: number, z: number) => Promise<boolean>;
 }
 
-const GRID_SIZE = 4
-const CELL_SIZE = 1.2
+const GRID_SIZE = 4;
+const CELL_SIZE = 1.2;
 
 const COLOR_PRESETS = [
   { name: "赤", value: "#ef4444" },
@@ -39,7 +47,7 @@ const COLOR_PRESETS = [
   { name: "ピンク", value: "#ec4899" },
   { name: "黄", value: "#eab308" },
   { name: "シアン", value: "#06b6d4" },
-]
+];
 
 const PIECE_SHAPES = [
   { id: "sphere" as PieceShape, name: "球体", icon: "●", description: "クラシックな球形" },
@@ -50,80 +58,80 @@ const PIECE_SHAPES = [
   { id: "dodecahedron" as PieceShape, name: "十二面体", icon: "⬟", description: "12面の多面体" },
   { id: "torus" as PieceShape, name: "トーラス", icon: "◯", description: "ドーナツ形状" },
   { id: "diamond" as PieceShape, name: "ダイヤモンド", icon: "♦", description: "ダイヤモンド形状" },
-]
+];
 
 const AI_DIFFICULTIES = [
   { id: "easy" as AIDifficulty, name: "簡単", description: "初心者向け", color: "#22c55e" },
   { id: "normal" as AIDifficulty, name: "普通", description: "バランス良く", color: "#f59e0b" },
   { id: "hard" as AIDifficulty, name: "難しい", description: "上級者向け", color: "#ef4444" },
-]
+];
 
 // AI思考用のヘルパー関数
 function getValidMoves(board: GameBoard): Array<{ x: number; z: number; y: number }> {
-  const moves: Array<{ x: number; z: number; y: number }> = []
+  const moves: Array<{ x: number; z: number; y: number }> = [];
 
   for (let x = 0; x < GRID_SIZE; x++) {
     for (let z = 0; z < GRID_SIZE; z++) {
       for (let y = 0; y < GRID_SIZE; y++) {
         if (!board[x][y][z]) {
-          moves.push({ x, z, y })
-          break // 重力により、この列の最下段のみ有効
+          moves.push({ x, z, y });
+          break; // 重力により、この列の最下段のみ有効
         }
       }
     }
   }
 
-  return moves
+  return moves;
 }
 
 function simulateMove(board: GameBoard, x: number, z: number, player: Player): GameBoard {
-  const newBoard = board.map((layer) => layer.map((row) => [...row]))
+  const newBoard = board.map((layer) => layer.map((row) => [...row]));
 
   for (let y = 0; y < GRID_SIZE; y++) {
     if (!newBoard[x][y][z]) {
-      newBoard[x][y][z] = player
-      break
+      newBoard[x][y][z] = player;
+      break;
     }
   }
 
-  return newBoard
+  return newBoard;
 }
 
 function evaluatePosition(board: GameBoard, player: Player, difficulty: AIDifficulty): number {
-  let score = 0
+  let score = 0;
 
   // 中央付近のポジションにボーナス
   for (let x = 0; x < GRID_SIZE; x++) {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let z = 0; z < GRID_SIZE; z++) {
         if (board[x][y][z] === player) {
-          const centerDistance = Math.abs(x - 1.5) + Math.abs(y - 1.5) + Math.abs(z - 1.5)
-          const centerBonus = (6 - centerDistance) * 2
+          const centerDistance = Math.abs(x - 1.5) + Math.abs(y - 1.5) + Math.abs(z - 1.5);
+          const centerBonus = (6 - centerDistance) * 2;
 
           // 難易度に応じて戦略的評価を調整
           switch (difficulty) {
             case "easy":
-              score += centerBonus * 0.5 // 戦略性を下げる
-              break
+              score += centerBonus * 0.5; // 戦略性を下げる
+              break;
             case "normal":
-              score += centerBonus
-              break
+              score += centerBonus;
+              break;
             case "hard":
-              score += centerBonus * 1.5 // より戦略的に
+              score += centerBonus * 1.5; // より戦略的に
               // 追加の戦略的評価
-              score += evaluateLines(board, x, y, z, player) * 3
-              break
+              score += evaluateLines(board, x, y, z, player) * 3;
+              break;
           }
         }
       }
     }
   }
 
-  return score
+  return score;
 }
 
 function evaluateLines(board: GameBoard, x: number, y: number, z: number, player: Player): number {
-  let lineScore = 0
+  let lineScore = 0;
   const directions = [
     [1, 0, 0],
     [0, 1, 0],
@@ -140,68 +148,70 @@ function evaluateLines(board: GameBoard, x: number, y: number, z: number, player
     [1, 1, -1],
     [1, -1, 1],
     [-1, 1, 1],
-  ]
+  ];
 
   for (const [dx, dy, dz] of directions) {
-    let count = 1
-    let emptySpaces = 0
+    let count = 1;
+    let emptySpaces = 0;
 
     // 正方向をチェック
     for (let i = 1; i < GRID_SIZE; i++) {
-      const nx = x + dx * i
-      const ny = y + dy * i
-      const nz = z + dz * i
+      const nx = x + dx * i;
+      const ny = y + dy * i;
+      const nz = z + dz * i;
 
-      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE) break
+      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE)
+        break;
 
       if (board[nx][ny][nz] === player) {
-        count++
+        count++;
       } else if (board[nx][ny][nz] === null) {
-        emptySpaces++
-        break
+        emptySpaces++;
+        break;
       } else {
-        break
+        break;
       }
     }
 
     // 負方向をチェック
     for (let i = 1; i < GRID_SIZE; i++) {
-      const nx = x - dx * i
-      const ny = y - dy * i
-      const nz = z - dz * i
+      const nx = x - dx * i;
+      const ny = y - dy * i;
+      const nz = z - dz * i;
 
-      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE) break
+      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE)
+        break;
 
       if (board[nx][ny][nz] === player) {
-        count++
+        count++;
       } else if (board[nx][ny][nz] === null) {
-        emptySpaces++
-        break
+        emptySpaces++;
+        break;
       } else {
-        break
+        break;
       }
     }
 
     // 連続数に応じてスコア加算
     if (count >= 2 && emptySpaces > 0) {
-      lineScore += count * count
+      lineScore += count * count;
     }
   }
 
-  return lineScore
+  return lineScore;
 }
 
 function checkWinningMove(board: GameBoard, x: number, z: number, player: Player): boolean {
-  const testBoard = simulateMove(board, x, z, player)
-  return checkWinnerForBoard(testBoard) === player
+  const testBoard = simulateMove(board, x, z, player);
+  return checkWinnerForBoard(testBoard) === player;
 }
 
 function checkWinnerForBoard(board: GameBoard): Player {
   for (let x = 0; x < GRID_SIZE; x++) {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let z = 0; z < GRID_SIZE; z++) {
-        const player = board[x][y][z]
-        if (!player) continue
+        const player = board[x][y][z];
+        if (!player) continue;
 
         const directions = [
           [1, 0, 0],
@@ -219,15 +229,15 @@ function checkWinnerForBoard(board: GameBoard): Player {
           [1, 1, -1],
           [1, -1, 1],
           [-1, 1, 1],
-        ]
+        ];
 
         for (const [dx, dy, dz] of directions) {
-          let count = 1
+          let count = 1;
 
           for (let i = 1; i < GRID_SIZE; i++) {
-            const nx = x + dx * i
-            const ny = y + dy * i
-            const nz = z + dz * i
+            const nx = x + dx * i;
+            const ny = y + dy * i;
+            const nz = z + dz * i;
 
             if (
               nx < 0 ||
@@ -238,15 +248,15 @@ function checkWinnerForBoard(board: GameBoard): Player {
               nz >= GRID_SIZE ||
               board[nx][ny][nz] !== player
             ) {
-              break
+              break;
             }
-            count++
+            count++;
           }
 
           for (let i = 1; i < GRID_SIZE; i++) {
-            const nx = x - dx * i
-            const ny = y - dy * i
-            const nz = z - dz * i
+            const nx = x - dx * i;
+            const ny = y - dy * i;
+            const nz = z - dz * i;
 
             if (
               nx < 0 ||
@@ -257,24 +267,24 @@ function checkWinnerForBoard(board: GameBoard): Player {
               nz >= GRID_SIZE ||
               board[nx][ny][nz] !== player
             ) {
-              break
+              break;
             }
-            count++
+            count++;
           }
 
           if (count >= 4) {
-            return player
+            return player;
           }
         }
       }
     }
   }
-  return null
+  return null;
 }
 
 // リーチライン検出関数
 function findReachLines(board: GameBoard, player: Player): ReachLine[] {
-  const reachLines: ReachLine[] = []
+  const reachLines: ReachLine[] = [];
   const directions = [
     [1, 0, 0],
     [0, 1, 0],
@@ -291,66 +301,80 @@ function findReachLines(board: GameBoard, player: Player): ReachLine[] {
     [1, 1, -1],
     [1, -1, 1],
     [-1, 1, 1],
-  ]
+  ];
 
   for (let x = 0; x < GRID_SIZE; x++) {
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let z = 0; z < GRID_SIZE; z++) {
-        if (board[x][y][z] !== player) continue
+        if (board[x][y][z] !== player) continue;
 
         for (const [dx, dy, dz] of directions) {
-          const linePositions: [number, number, number][] = [[x, y, z]]
-          let emptyPosition: [number, number, number] | null = null
-          let validLine = true
+          const linePositions: [number, number, number][] = [[x, y, z]];
+          let emptyPosition: [number, number, number] | null = null;
+          let validLine = true;
 
           // 正方向をチェック
           for (let i = 1; i < GRID_SIZE; i++) {
-            const nx = x + dx * i
-            const ny = y + dy * i
-            const nz = z + dz * i
+            const nx = x + dx * i;
+            const ny = y + dy * i;
+            const nz = z + dz * i;
 
-            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE) {
-              break
+            if (
+              nx < 0 ||
+              nx >= GRID_SIZE ||
+              ny < 0 ||
+              ny >= GRID_SIZE ||
+              nz < 0 ||
+              nz >= GRID_SIZE
+            ) {
+              break;
             }
 
             if (board[nx][ny][nz] === player) {
-              linePositions.push([nx, ny, nz])
+              linePositions.push([nx, ny, nz]);
             } else if (board[nx][ny][nz] === null) {
               if (emptyPosition === null) {
-                emptyPosition = [nx, ny, nz]
-                linePositions.push([nx, ny, nz])
+                emptyPosition = [nx, ny, nz];
+                linePositions.push([nx, ny, nz]);
               } else {
-                validLine = false
-                break
+                validLine = false;
+                break;
               }
             } else {
-              break
+              break;
             }
           }
 
           // 負方向をチェック
           if (validLine) {
             for (let i = 1; i < GRID_SIZE; i++) {
-              const nx = x - dx * i
-              const ny = y - dy * i
-              const nz = z - dz * i
+              const nx = x - dx * i;
+              const ny = y - dy * i;
+              const nz = z - dz * i;
 
-              if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE) {
-                break
+              if (
+                nx < 0 ||
+                nx >= GRID_SIZE ||
+                ny < 0 ||
+                ny >= GRID_SIZE ||
+                nz < 0 ||
+                nz >= GRID_SIZE
+              ) {
+                break;
               }
 
               if (board[nx][ny][nz] === player) {
-                linePositions.unshift([nx, ny, nz])
+                linePositions.unshift([nx, ny, nz]);
               } else if (board[nx][ny][nz] === null) {
                 if (emptyPosition === null) {
-                  emptyPosition = [nx, ny, nz]
-                  linePositions.unshift([nx, ny, nz])
+                  emptyPosition = [nx, ny, nz];
+                  linePositions.unshift([nx, ny, nz]);
                 } else {
-                  validLine = false
-                  break
+                  validLine = false;
+                  break;
                 }
               } else {
-                break
+                break;
               }
             }
           }
@@ -358,20 +382,20 @@ function findReachLines(board: GameBoard, player: Player): ReachLine[] {
           // 3つのピース + 1つの空きスペース = リーチライン
           if (validLine && linePositions.length === 4 && emptyPosition) {
             // 重力チェック：空きスペースが実際に配置可能か
-            const [ex, ey, ez] = emptyPosition
-            let canPlace = true
+            const [ex, ey, ez] = emptyPosition;
+            let canPlace = true;
 
             // 重力により、下に他のピースがあるかチェック
             if (ey > 0) {
-              let hasSupport = false
+              let hasSupport = false;
               for (let checkY = ey - 1; checkY >= 0; checkY--) {
                 if (board[ex][checkY][ez] !== null) {
-                  hasSupport = true
-                  break
+                  hasSupport = true;
+                  break;
                 }
               }
               if (!hasSupport) {
-                canPlace = false
+                canPlace = false;
               }
             }
 
@@ -380,7 +404,7 @@ function findReachLines(board: GameBoard, player: Player): ReachLine[] {
                 positions: linePositions,
                 player,
                 winningPosition: emptyPosition,
-              })
+              });
             }
           }
         }
@@ -388,25 +412,25 @@ function findReachLines(board: GameBoard, player: Player): ReachLine[] {
     }
   }
 
-  return reachLines
+  return reachLines;
 }
 
 function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: number } | null {
   try {
-    const validMoves = getValidMoves(board)
-    if (validMoves.length === 0) return null
+    const validMoves = getValidMoves(board);
+    if (validMoves.length === 0) return null;
 
     // 簡単モード: 50%の確率でランダム手
     if (difficulty === "easy" && Math.random() < 0.5) {
-      const randomIndex = Math.floor(Math.random() * validMoves.length)
-      const randomMove = validMoves[randomIndex]
-      return { x: randomMove.x, z: randomMove.z }
+      const randomIndex = Math.floor(Math.random() * validMoves.length);
+      const randomMove = validMoves[randomIndex];
+      return { x: randomMove.x, z: randomMove.z };
     }
 
     // 1. 勝利可能な手をチェック（全難易度共通）
     for (const move of validMoves) {
       if (checkWinningMove(board, move.x, move.z, 2)) {
-        return { x: move.x, z: move.z }
+        return { x: move.x, z: move.z };
       }
     }
 
@@ -415,73 +439,79 @@ function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: 
     if (difficulty !== "easy" || Math.random() > 0.3) {
       for (const move of validMoves) {
         if (checkWinningMove(board, move.x, move.z, 1)) {
-          return { x: move.x, z: move.z }
+          return { x: move.x, z: move.z };
         }
       }
     }
 
     // 3. 戦略的な位置を評価
-    let bestMove = validMoves[0]
-    let bestScore = Number.NEGATIVE_INFINITY
+    let bestMove = validMoves[0];
+    let bestScore = Number.NEGATIVE_INFINITY;
 
     for (const move of validMoves) {
-      const testBoard = simulateMove(board, move.x, move.z, 2)
-      const aiScore = evaluatePosition(testBoard, 2, difficulty)
-      const playerScore = evaluatePosition(testBoard, 1, difficulty)
-      let score = aiScore - playerScore
+      const testBoard = simulateMove(board, move.x, move.z, 2);
+      const aiScore = evaluatePosition(testBoard, 2, difficulty);
+      const playerScore = evaluatePosition(testBoard, 1, difficulty);
+      let score = aiScore - playerScore;
 
       // 難易度に応じてランダム要素を調整
-      let randomBonus = 0
+      let randomBonus = 0;
       switch (difficulty) {
         case "easy":
-          randomBonus = Math.random() * 50 // 大きなランダム要素
-          break
+          randomBonus = Math.random() * 50; // 大きなランダム要素
+          break;
         case "normal":
-          randomBonus = Math.random() * 20 // 中程度のランダム要素
-          break
+          randomBonus = Math.random() * 20; // 中程度のランダム要素
+          break;
         case "hard":
-          randomBonus = Math.random() * 5 // 小さなランダム要素
+          randomBonus = Math.random() * 5; // 小さなランダム要素
           // 難しいモードでは相手の次の手も考慮
-          score += evaluateOpponentThreats(testBoard, difficulty) * 10
-          break
+          score += evaluateOpponentThreats(testBoard, difficulty) * 10;
+          break;
       }
 
-      const totalScore = score + randomBonus
+      const totalScore = score + randomBonus;
 
       if (totalScore > bestScore) {
-        bestScore = totalScore
-        bestMove = move
+        bestScore = totalScore;
+        bestMove = move;
       }
     }
 
-    return { x: bestMove.x, z: bestMove.z }
+    return { x: bestMove.x, z: bestMove.z };
   } catch (error) {
-    console.error("AI思考エラー:", error)
+    console.error("AI思考エラー:", error);
     // エラー時はランダムな有効手を返す
-    const validMoves = getValidMoves(board)
+    const validMoves = getValidMoves(board);
     if (validMoves.length > 0) {
-      const randomIndex = Math.floor(Math.random() * validMoves.length)
-      const randomMove = validMoves[randomIndex]
-      return { x: randomMove.x, z: randomMove.z }
+      const randomIndex = Math.floor(Math.random() * validMoves.length);
+      const randomMove = validMoves[randomIndex];
+      return { x: randomMove.x, z: randomMove.z };
     }
-    return null
+    return null;
   }
 }
 
 function evaluateOpponentThreats(board: GameBoard, difficulty: AIDifficulty): number {
-  let threatScore = 0
-  const validMoves = getValidMoves(board)
+  let threatScore = 0;
+  const validMoves = getValidMoves(board);
 
   for (const move of validMoves) {
     if (checkWinningMove(board, move.x, move.z, 1)) {
-      threatScore -= 100 // 相手の勝利手は大きなマイナス
+      threatScore -= 100; // 相手の勝利手は大きなマイナス
     }
   }
 
-  return threatScore
+  return threatScore;
 }
 
-export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, makeOnlineMove }: GamePageProps) {
+export function GamePage({
+  gameMode,
+  onBackToMenu,
+  onlineRoom,
+  onlinePlayerId,
+  makeOnlineMove,
+}: GamePageProps) {
   const [board, setBoard] = useState<GameBoard>(() =>
     Array(GRID_SIZE)
       .fill(null)
@@ -490,40 +520,40 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
           .fill(null)
           .map(() => Array(GRID_SIZE).fill(null)),
       ),
-  )
-  const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1)
-  const [showVerticalGrid, setShowVerticalGrid] = useState(true)
-  const [showHorizontalGrid, setShowHorizontalGrid] = useState(false)
-  const [winner, setWinner] = useState<Player>(null)
-  const [gameOver, setGameOver] = useState(false)
-  const [aiThinking, setAiThinking] = useState(false)
-  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>("normal")
+  );
+  const [currentPlayer, setCurrentPlayer] = useState<1 | 2>(1);
+  const [showVerticalGrid, setShowVerticalGrid] = useState(true);
+  const [showHorizontalGrid, setShowHorizontalGrid] = useState(false);
+  const [winner, setWinner] = useState<Player>(null);
+  const [gameOver, setGameOver] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>("normal");
 
-  const [player1Color, setPlayer1Color] = useState("#ef4444") // 赤
-  const [player2Color, setPlayer2Color] = useState("#3b82f6") // 青
-  const [player1Shape, setPlayer1Shape] = useState<PieceShape>("sphere")
-  const [player2Shape, setPlayer2Shape] = useState<PieceShape>("cube")
+  const [player1Color, setPlayer1Color] = useState("#ef4444"); // 赤
+  const [player2Color, setPlayer2Color] = useState("#3b82f6"); // 青
+  const [player1Shape, setPlayer1Shape] = useState<PieceShape>("sphere");
+  const [player2Shape, setPlayer2Shape] = useState<PieceShape>("cube");
 
-  const [showSettings, setShowSettings] = useState(false)
-  const [showReachLines, setShowReachLines] = useState(true)
-  const [showPlayerReachOnly, setShowPlayerReachOnly] = useState(true)
+  const [showSettings, setShowSettings] = useState(false);
+  const [showReachLines, setShowReachLines] = useState(true);
+  const [showPlayerReachOnly, setShowPlayerReachOnly] = useState(true);
 
   // モバイル対応の状態
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(false);
 
   // 処理中フラグ
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // モバイル検出
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+      setIsMobile(window.innerWidth < 768);
+    };
 
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // resetGame関数を定義
   const resetGame = useCallback(() => {
@@ -535,86 +565,88 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
             .fill(null)
             .map(() => Array(GRID_SIZE).fill(null)),
         ),
-    )
-    setCurrentPlayer(1)
-    setWinner(null)
-    setGameOver(false)
-    setAiThinking(false)
-    setIsProcessing(false) // 処理フラグもリセット
-  }, [])
+    );
+    setCurrentPlayer(1);
+    setWinner(null);
+    setGameOver(false);
+    setAiThinking(false);
+    setIsProcessing(false); // 処理フラグもリセット
+  }, []);
 
   // リーチライン計算
   const reachLines = useMemo(() => {
-    if (!showReachLines || gameOver) return []
+    if (!showReachLines || gameOver) return [];
 
-    const lines: ReachLine[] = []
+    const lines: ReachLine[] = [];
 
     // プレイヤー1のリーチライン
     if (!showPlayerReachOnly || gameMode !== "vs-ai") {
-      lines.push(...findReachLines(board, 1))
+      lines.push(...findReachLines(board, 1));
     } else if (gameMode === "vs-ai") {
-      lines.push(...findReachLines(board, 1))
+      lines.push(...findReachLines(board, 1));
     }
 
     // プレイヤー2/AIのリーチライン
     if (!showPlayerReachOnly) {
-      lines.push(...findReachLines(board, 2))
+      lines.push(...findReachLines(board, 2));
     }
 
-    return lines
-  }, [board, showReachLines, showPlayerReachOnly, gameMode, gameOver])
+    return lines;
+  }, [board, showReachLines, showPlayerReachOnly, gameMode, gameOver]);
 
   const checkWinner = useCallback((newBoard: GameBoard): Player => {
-    return checkWinnerForBoard(newBoard)
-  }, [])
+    return checkWinnerForBoard(newBoard);
+  }, []);
 
   // dropPiece関数
   const dropPiece = useCallback(
     async (x: number, z: number) => {
       // 処理中または連続クリック防止
-      if (gameOver || aiThinking || isProcessing) return
-      if (gameMode === "vs-ai" && currentPlayer === 2) return
+      if (gameOver || aiThinking || isProcessing) return;
+      if (gameMode === "vs-ai" && currentPlayer === 2) return;
 
       // 処理開始フラグを設定
-      setIsProcessing(true)
+      setIsProcessing(true);
 
       try {
         if (gameMode === "online" && onlinePlayerId && makeOnlineMove) {
           // オンラインモードでは相手の番は打てない
-          const currentPlayerIndex = onlineRoom?.players.findIndex((p: any) => p.id === onlinePlayerId)
-          if (currentPlayerIndex !== undefined && currentPlayerIndex + 1 !== currentPlayer) return
+          const currentPlayerIndex = onlineRoom?.players.findIndex(
+            (p: any) => p.id === onlinePlayerId,
+          );
+          if (currentPlayerIndex !== undefined && currentPlayerIndex + 1 !== currentPlayer) return;
 
           // オンラインで手を送信
-          const success = await makeOnlineMove(x, z)
-          if (!success) return
+          const success = await makeOnlineMove(x, z);
+          if (!success) return;
         }
 
         // ローカル処理（既存のロジック）
-        let y = -1
+        let y = -1;
         for (let i = 0; i < GRID_SIZE; i++) {
           if (!board[x][i][z]) {
-            y = i
-            break
+            y = i;
+            break;
           }
         }
 
-        if (y === -1) return
+        if (y === -1) return;
 
-        const newBoard = board.map((layer) => layer.map((row) => [...row]))
-        newBoard[x][y][z] = currentPlayer
+        const newBoard = board.map((layer) => layer.map((row) => [...row]));
+        newBoard[x][y][z] = currentPlayer;
 
-        setBoard(newBoard)
+        setBoard(newBoard);
 
-        const gameWinner = checkWinner(newBoard)
+        const gameWinner = checkWinner(newBoard);
         if (gameWinner) {
-          setWinner(gameWinner)
-          setGameOver(true)
+          setWinner(gameWinner);
+          setGameOver(true);
         } else {
-          setCurrentPlayer(currentPlayer === 1 ? 2 : 1)
+          setCurrentPlayer(currentPlayer === 1 ? 2 : 1);
         }
       } finally {
         // 短いデバウンス後に処理フラグをリセット
-        setTimeout(() => setIsProcessing(false), 200)
+        setTimeout(() => setIsProcessing(false), 200);
       }
     },
     [
@@ -629,91 +661,91 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
       makeOnlineMove,
       isProcessing,
     ],
-  )
+  );
 
   // オンラインルームの状態変更を監視
   useEffect(() => {
     if (onlineRoom && gameMode === "online") {
-      setBoard(onlineRoom.gameState)
-      setCurrentPlayer(onlineRoom.currentPlayer)
+      setBoard(onlineRoom.gameState);
+      setCurrentPlayer(onlineRoom.currentPlayer);
 
       if (onlineRoom.winner) {
-        setWinner(onlineRoom.winner)
-        setGameOver(true)
+        setWinner(onlineRoom.winner);
+        setGameOver(true);
       }
     }
-  }, [onlineRoom, gameMode])
+  }, [onlineRoom, gameMode]);
 
   // AI の手番処理
   useEffect(() => {
     if (gameMode === "vs-ai" && currentPlayer === 2 && !gameOver && !aiThinking) {
-      setAiThinking(true)
+      setAiThinking(true);
 
       // 難易度に応じて思考時間を調整
-      let thinkingTime = 500
+      let thinkingTime = 500;
       switch (aiDifficulty) {
         case "easy":
-          thinkingTime = 300 + Math.random() * 500 // 0.3-0.8秒
-          break
+          thinkingTime = 300 + Math.random() * 500; // 0.3-0.8秒
+          break;
         case "normal":
-          thinkingTime = 500 + Math.random() * 1000 // 0.5-1.5秒
-          break
+          thinkingTime = 500 + Math.random() * 1000; // 0.5-1.5秒
+          break;
         case "hard":
-          thinkingTime = 1000 + Math.random() * 1500 // 1.0-2.5秒
-          break
+          thinkingTime = 1000 + Math.random() * 1500; // 1.0-2.5秒
+          break;
       }
 
       setTimeout(() => {
-        const aiMove = getAIMove(board, aiDifficulty)
+        const aiMove = getAIMove(board, aiDifficulty);
         if (aiMove) {
           // AIの手を直接処理
-          let y = -1
+          let y = -1;
           for (let i = 0; i < GRID_SIZE; i++) {
             if (!board[aiMove.x][i][aiMove.z]) {
-              y = i
-              break
+              y = i;
+              break;
             }
           }
 
           if (y !== -1) {
-            const newBoard = board.map((layer) => layer.map((row) => [...row]))
-            newBoard[aiMove.x][y][aiMove.z] = 2
+            const newBoard = board.map((layer) => layer.map((row) => [...row]));
+            newBoard[aiMove.x][y][aiMove.z] = 2;
 
-            setBoard(newBoard)
+            setBoard(newBoard);
 
-            const gameWinner = checkWinner(newBoard)
+            const gameWinner = checkWinner(newBoard);
             if (gameWinner) {
-              setWinner(gameWinner)
-              setGameOver(true)
+              setWinner(gameWinner);
+              setGameOver(true);
             } else {
-              setCurrentPlayer(1)
+              setCurrentPlayer(1);
             }
           }
         }
-        setAiThinking(false)
-      }, thinkingTime)
+        setAiThinking(false);
+      }, thinkingTime);
     }
-  }, [currentPlayer, gameMode, gameOver, board, aiThinking, checkWinner, aiDifficulty])
+  }, [currentPlayer, gameMode, gameOver, board, aiThinking, checkWinner, aiDifficulty]);
 
-  const currentDifficulty = AI_DIFFICULTIES.find((diff) => diff.id === aiDifficulty)
+  const currentDifficulty = AI_DIFFICULTIES.find((diff) => diff.id === aiDifficulty);
 
   // 勝利メッセージとアイコンを取得
   const getVictoryInfo = () => {
-    if (!winner) return null
+    if (!winner) return null;
 
-    const winnerColor = winner === 1 ? player1Color : player2Color
-    const winnerShape = winner === 1 ? player1Shape : player2Shape
-    const winnerIcon = PIECE_SHAPES.find((s) => s.id === winnerShape)?.icon || "●"
+    const winnerColor = winner === 1 ? player1Color : player2Color;
+    const winnerShape = winner === 1 ? player1Shape : player2Shape;
+    const winnerIcon = PIECE_SHAPES.find((s) => s.id === winnerShape)?.icon || "●";
 
     if (gameMode === "vs-ai") {
-      const isPlayerWin = winner === 1
+      const isPlayerWin = winner === 1;
       return {
         title: isPlayerWin ? "🎉 勝利！" : "😔 敗北...",
         subtitle: isPlayerWin ? "おめでとうございます！" : "AIの勝利です",
         color: winnerColor,
         icon: winnerIcon,
         bgColor: isPlayerWin ? "from-green-400 to-blue-500" : "from-red-400 to-pink-500",
-      }
+      };
     } else {
       return {
         title: `🎉 プレイヤー${winner}の勝利！`,
@@ -721,22 +753,22 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
         color: winnerColor,
         icon: winnerIcon,
         bgColor: "from-yellow-400 to-orange-500",
-      }
+      };
     }
-  }
+  };
 
-  const victoryInfo = getVictoryInfo()
+  const victoryInfo = getVictoryInfo();
 
   // getPlayerLabel関数
   const getPlayerLabel = (player: number) => {
     if (gameMode === "vs-ai") {
-      return player === 1 ? "あなた" : "AI"
+      return player === 1 ? "あなた" : "AI";
     } else if (gameMode === "online" && onlineRoom) {
-      const playerData = onlineRoom.players[player - 1]
-      return playerData ? playerData.name : `プレイヤー ${player}`
+      const playerData = onlineRoom.players[player - 1];
+      return playerData ? playerData.name : `プレイヤー ${player}`;
     }
-    return `プレイヤー ${player}`
-  }
+    return `プレイヤー ${player}`;
+  };
 
   return (
     <>
@@ -772,7 +804,12 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
                     </span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    モード: {gameMode === "vs-ai" ? "vs AI" : gameMode === "two-player" ? "2プレイヤー" : "オンライン"}
+                    モード:{" "}
+                    {gameMode === "vs-ai"
+                      ? "vs AI"
+                      : gameMode === "two-player"
+                        ? "2プレイヤー"
+                        : "オンライン"}
                     {gameMode === "vs-ai" && currentDifficulty && (
                       <span className="ml-2">({currentDifficulty.name})</span>
                     )}
@@ -810,7 +847,11 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
                 <div className="flex-1 min-w-0">
                   <div className="text-base md:text-lg font-bold truncate">3D Connect Four</div>
                   <div className="text-xs md:text-sm text-gray-600 truncate">
-                    {gameMode === "vs-ai" ? "vs AI" : gameMode === "two-player" ? "2プレイヤー" : "オンライン"}
+                    {gameMode === "vs-ai"
+                      ? "vs AI"
+                      : gameMode === "two-player"
+                        ? "2プレイヤー"
+                        : "オンライン"}
                     {gameMode === "vs-ai" && currentDifficulty && (
                       <span className="ml-1" style={{ color: currentDifficulty.color }}>
                         ({currentDifficulty.name})
@@ -932,7 +973,12 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
             <div className="bg-white rounded-t-2xl md:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between rounded-t-2xl">
                 <h3 className="text-lg font-bold">ゲーム設定</h3>
-                <Button variant="ghost" size="sm" onClick={() => setShowSettings(false)} className="h-8 w-8 p-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSettings(false)}
+                  className="h-8 w-8 p-0"
+                >
                   ×
                 </Button>
               </div>
@@ -950,7 +996,8 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
                           onClick={() => setAiDifficulty(difficulty.id)}
                           className="justify-start text-sm"
                           style={{
-                            backgroundColor: aiDifficulty === difficulty.id ? difficulty.color : undefined,
+                            backgroundColor:
+                              aiDifficulty === difficulty.id ? difficulty.color : undefined,
                             borderColor: difficulty.color,
                           }}
                         >
@@ -999,7 +1046,10 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
                   <div className="space-y-4">
                     <div>
                       <div className="text-xs mb-2 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: player1Color }} />
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: player1Color }}
+                        />
                         {gameMode === "vs-ai" ? "あなた" : "プレイヤー1"}
                       </div>
                       <div className="grid grid-cols-4 gap-2">
@@ -1019,7 +1069,10 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
                     </div>
                     <div>
                       <div className="text-xs mb-2 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: player2Color }} />
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: player2Color }}
+                        />
                         {gameMode === "vs-ai" ? "AI" : "プレイヤー2"}
                       </div>
                       <div className="grid grid-cols-4 gap-2">
@@ -1051,7 +1104,7 @@ export function GamePage({ gameMode, onBackToMenu, onlineRoom, onlinePlayerId, m
         )}
       </div>
     </>
-  )
+  );
 }
 
 function GameBoard3D({
@@ -1067,17 +1120,17 @@ function GameBoard3D({
   aiThinking,
   reachLines,
 }: {
-  board: GameBoard
-  onCellClick: (x: number, z: number) => void
-  gameOver: boolean
-  showVerticalGrid: boolean
-  showHorizontalGrid: boolean
-  player1Color: string
-  player2Color: string
-  player1Shape: PieceShape
-  player2Shape: PieceShape
-  aiThinking: boolean
-  reachLines: ReachLine[]
+  board: GameBoard;
+  onCellClick: (x: number, z: number) => void;
+  gameOver: boolean;
+  showVerticalGrid: boolean;
+  showHorizontalGrid: boolean;
+  player1Color: string;
+  player2Color: string;
+  player1Shape: PieceShape;
+  player2Shape: PieceShape;
+  aiThinking: boolean;
+  reachLines: ReachLine[];
 }) {
   return (
     <group>
@@ -1121,10 +1174,14 @@ function GameBoard3D({
               .map((_, z) => (
                 <mesh
                   key={`clickable-${x}-${z}`}
-                  position={[(x - 4 / 2 + 0.5) * 1.2, (-4 / 2) * 1.2 - 0.5, (z - 4 / 2 + 0.5) * 1.2]}
+                  position={[
+                    (x - 4 / 2 + 0.5) * 1.2,
+                    (-4 / 2) * 1.2 - 0.5,
+                    (z - 4 / 2 + 0.5) * 1.2,
+                  ]}
                   onClick={(e) => {
-                    e.stopPropagation()
-                    onCellClick(x, z)
+                    e.stopPropagation();
+                    onCellClick(x, z);
                   }}
                 >
                   <boxGeometry args={[1.2 * 0.9, 0.15, 1.2 * 0.9]} />
@@ -1137,7 +1194,7 @@ function GameBoard3D({
               )),
           )}
     </group>
-  )
+  );
 }
 
 function ReachLineDisplay({
@@ -1145,31 +1202,31 @@ function ReachLineDisplay({
   player1Color,
   player2Color,
 }: {
-  reachLine: ReachLine
-  player1Color: string
-  player2Color: string
+  reachLine: ReachLine;
+  player1Color: string;
+  player2Color: string;
 }) {
-  const lineRef = useRef<THREE.Group>(null)
-  const lineColor = reachLine.player === 1 ? player1Color : player2Color
+  const lineRef = useRef<THREE.Group>(null);
+  const lineColor = reachLine.player === 1 ? player1Color : player2Color;
 
   useFrame((state) => {
     if (lineRef.current) {
       // パルス効果
-      const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.3 + 0.7
+      const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.3 + 0.7;
       lineRef.current.children.forEach((child) => {
         if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
-          child.material.opacity = pulse
+          child.material.opacity = pulse;
         }
-      })
+      });
     }
-  })
+  });
 
   return (
     <group ref={lineRef}>
       {/* リーチライン */}
       {reachLine.positions.map((pos, index) => {
-        const [x, y, z] = pos
-        const isWinningPosition = pos === reachLine.winningPosition
+        const [x, y, z] = pos;
+        const isWinningPosition = pos === reachLine.winningPosition;
 
         return (
           <mesh
@@ -1191,20 +1248,28 @@ function ReachLineDisplay({
               emissiveIntensity={isWinningPosition ? 0.3 : 0.1}
             />
           </mesh>
-        )
+        );
       })}
 
       {/* 接続線 */}
       {reachLine.positions.slice(0, -1).map((pos, index) => {
-        const [x1, y1, z1] = pos
-        const [x2, y2, z2] = reachLine.positions[index + 1]
+        const [x1, y1, z1] = pos;
+        const [x2, y2, z2] = reachLine.positions[index + 1];
 
-        const start = new THREE.Vector3((x1 - 4 / 2 + 0.5) * 1.2, (y1 - 4 / 2 + 0.5) * 1.2, (z1 - 4 / 2 + 0.5) * 1.2)
-        const end = new THREE.Vector3((x2 - 4 / 2 + 0.5) * 1.2, (y2 - 4 / 2 + 0.5) * 1.2, (z2 - 4 / 2 + 0.5) * 1.2)
+        const start = new THREE.Vector3(
+          (x1 - 4 / 2 + 0.5) * 1.2,
+          (y1 - 4 / 2 + 0.5) * 1.2,
+          (z1 - 4 / 2 + 0.5) * 1.2,
+        );
+        const end = new THREE.Vector3(
+          (x2 - 4 / 2 + 0.5) * 1.2,
+          (y2 - 4 / 2 + 0.5) * 1.2,
+          (z2 - 4 / 2 + 0.5) * 1.2,
+        );
 
-        const direction = end.clone().sub(start)
-        const length = direction.length()
-        const center = start.clone().add(end).multiplyScalar(0.5)
+        const direction = end.clone().sub(start);
+        const length = direction.length();
+        const center = start.clone().add(end).multiplyScalar(0.5);
 
         return (
           <mesh key={`line-${index}`} position={center.toArray()}>
@@ -1217,14 +1282,20 @@ function ReachLineDisplay({
               emissiveIntensity={0.2}
             />
           </mesh>
-        )
+        );
       })}
     </group>
-  )
+  );
 }
 
-function GridFrame({ showVertical, showHorizontal }: { showVertical: boolean; showHorizontal: boolean }) {
-  const lineRef = useRef<THREE.Group>(null)
+function GridFrame({
+  showVertical,
+  showHorizontal,
+}: {
+  showVertical: boolean;
+  showHorizontal: boolean;
+}) {
+  const lineRef = useRef<THREE.Group>(null);
 
   return (
     <group ref={lineRef}>
@@ -1236,7 +1307,10 @@ function GridFrame({ showVertical, showHorizontal }: { showVertical: boolean; sh
             Array(4 + 1)
               .fill(null)
               .map((_, j) => (
-                <mesh key={`vertical-${i}-${j}`} position={[(i - 4 / 2) * 1.2, 0, (j - 4 / 2) * 1.2]}>
+                <mesh
+                  key={`vertical-${i}-${j}`}
+                  position={[(i - 4 / 2) * 1.2, 0, (j - 4 / 2) * 1.2]}
+                >
                   <cylinderGeometry args={[0.02, 0.02, 4 * 1.2]} />
                   <meshStandardMaterial color="#64748b" opacity={0.6} transparent />
                 </mesh>
@@ -1281,7 +1355,7 @@ function GridFrame({ showVertical, showHorizontal }: { showVertical: boolean; sh
               )),
           )}
     </group>
-  )
+  );
 }
 
 function GamePiece({
@@ -1292,51 +1366,51 @@ function GamePiece({
   player1Shape,
   player2Shape,
 }: {
-  position: [number, number, number]
-  player: Player
-  player1Color: string
-  player2Color: string
-  player1Shape: PieceShape
-  player2Shape: PieceShape
+  position: [number, number, number];
+  player: Player;
+  player1Color: string;
+  player2Color: string;
+  player1Shape: PieceShape;
+  player2Shape: PieceShape;
 }) {
-  const meshRef = useRef<THREE.Object3D>(null)
+  const meshRef = useRef<THREE.Object3D>(null);
 
   // 回転アニメーション
   useFrame((state) => {
     if (meshRef.current && player) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.5
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.5;
     }
-  })
+  });
 
-  if (!player) return null
+  if (!player) return null;
 
-  const color = player === 1 ? player1Color : player2Color
-  const shape = player === 1 ? player1Shape : player2Shape
+  const color = player === 1 ? player1Color : player2Color;
+  const shape = player === 1 ? player1Shape : player2Shape;
 
   // ===== 各形状のジオメトリ定義 =====
   const Geometry = () => {
     switch (shape) {
       case "sphere":
-        return <sphereGeometry args={[0.4, 32, 32]} />
+        return <sphereGeometry args={[0.4, 32, 32]} />;
       case "cube":
-        return <boxGeometry args={[0.7, 0.7, 0.7]} />
+        return <boxGeometry args={[0.7, 0.7, 0.7]} />;
       case "cylinder":
-        return <cylinderGeometry args={[0.35, 0.35, 0.8, 32]} />
+        return <cylinderGeometry args={[0.35, 0.35, 0.8, 32]} />;
       case "cone":
-        return <coneGeometry args={[0.4, 0.8, 32]} />
+        return <coneGeometry args={[0.4, 0.8, 32]} />;
       case "octahedron":
-        return <octahedronGeometry args={[0.45]} />
+        return <octahedronGeometry args={[0.45]} />;
       case "dodecahedron":
-        return <dodecahedronGeometry args={[0.35]} />
+        return <dodecahedronGeometry args={[0.35]} />;
       case "torus":
-        return <torusGeometry args={[0.3, 0.15, 16, 32]} />
+        return <torusGeometry args={[0.3, 0.15, 16, 32]} />;
       // diamond は上下 2 つの円錐を合体
       case "diamond":
-        return null
+        return null;
       default:
-        return <sphereGeometry args={[0.4, 32, 32]} />
+        return <sphereGeometry args={[0.4, 32, 32]} />;
     }
-  }
+  };
 
   // ===== diamond 専用描画 =====
   if (shape === "diamond") {
@@ -1351,7 +1425,7 @@ function GamePiece({
           <meshStandardMaterial color={color} metalness={0.3} roughness={0.2} />
         </mesh>
       </group>
-    )
+    );
   }
 
   // ===== 通常形状描画 =====
@@ -1360,5 +1434,5 @@ function GamePiece({
       <Geometry />
       <meshStandardMaterial color={color} metalness={0.3} roughness={0.2} />
     </mesh>
-  )
+  );
 }

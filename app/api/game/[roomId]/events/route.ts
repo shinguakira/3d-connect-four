@@ -8,7 +8,7 @@ const lastKnownStates = new Map<string, string>();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ roomId: string }> }
+  { params }: { params: Promise<{ roomId: string }> },
 ) {
   const { roomId } = await params;
   const playerId = request.nextUrl.searchParams.get("playerId");
@@ -34,16 +34,16 @@ export async function GET(
       // 初期ゲーム状態を送信
       const room = gameManager.getRoom(roomId);
       console.log(`SSE connection established for room ${roomId}, room exists:`, !!room);
-      
+
       if (room) {
         // Use the same state comparison logic as the periodic check
         const stateForComparison = {
           ...room,
           lastActivity: undefined,
-          players: room.players.map(p => ({
+          players: room.players.map((p) => ({
             ...p,
-            lastSeen: undefined
-          }))
+            lastSeen: undefined,
+          })),
         };
         const roomState = JSON.stringify(stateForComparison);
         lastKnownStates.set(roomId, roomState);
@@ -60,7 +60,7 @@ export async function GET(
         const errorData = `data: ${JSON.stringify({
           type: "error",
           error: "Room not found",
-          roomId
+          roomId,
         })}\n\n`;
         controller.enqueue(encoder.encode(errorData));
       }
@@ -83,10 +83,10 @@ export async function GET(
         const stateForComparison = {
           ...currentRoom,
           lastActivity: undefined, // Exclude frequently changing timestamp
-          players: currentRoom.players.map(p => ({
+          players: currentRoom.players.map((p) => ({
             ...p,
-            lastSeen: undefined // Exclude frequently changing timestamp
-          }))
+            lastSeen: undefined, // Exclude frequently changing timestamp
+          })),
         };
         const currentRoomState = JSON.stringify(stateForComparison);
         const previousState = lastKnownStates.get(roomId);

@@ -1,46 +1,53 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Loader2, Users, Gamepad2, Hash } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Users, Gamepad2, Hash } from "lucide-react";
 
 interface OnlineMenuProps {
-  onCreateRoom: (playerName: string) => void
-  onJoinRoom: (roomId: string, playerName: string) => void
-  onQuickMatch: (playerName: string) => void
-  onBack: () => void
-  isLoading: boolean
-  error: string | null
+  onCreateRoom: (playerName: string) => void;
+  onJoinRoom: (roomId: string, playerName: string) => void;
+  onQuickMatch: (playerName: string) => void;
+  onBack: () => void;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isLoading, error }: OnlineMenuProps) {
-  const [playerName, setPlayerName] = useState("")
-  const [roomId, setRoomId] = useState("")
-  const [activeTab, setActiveTab] = useState<"create" | "join" | "quick">("quick")
+export function OnlineMenu({
+  onCreateRoom,
+  onJoinRoom,
+  onQuickMatch,
+  onBack,
+  isLoading,
+  error,
+}: OnlineMenuProps) {
+  const [playerName, setPlayerName] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [activeTab, setActiveTab] = useState<"create" | "join" | "quick">("quick");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!playerName.trim()) return
+    e.preventDefault();
+    if (!playerName.trim()) return;
 
     switch (activeTab) {
       case "create":
-        onCreateRoom(playerName.trim())
-        break
+        onCreateRoom(playerName.trim());
+        break;
       case "join":
         if (roomId.trim()) {
-          onJoinRoom(roomId.trim().toUpperCase(), playerName.trim())
+          onJoinRoom(roomId.trim().toUpperCase(), playerName.trim());
         }
-        break
+        break;
       case "quick":
-        onQuickMatch(playerName.trim())
-        break
+        onQuickMatch(playerName.trim());
+        break;
     }
-  }
+  };
 
   return (
     <div className="w-full h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -155,7 +162,9 @@ export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isL
               <Button
                 type="submit"
                 size="lg"
-                disabled={isLoading || !playerName.trim() || (activeTab === "join" && !roomId.trim())}
+                disabled={
+                  isLoading || !playerName.trim() || (activeTab === "join" && !roomId.trim())
+                }
                 className="w-full"
               >
                 {isLoading ? (
@@ -195,5 +204,5 @@ export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isL
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

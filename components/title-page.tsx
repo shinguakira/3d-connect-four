@@ -88,9 +88,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
           <div className="container mx-auto px-4 py-8 md:py-12">
             <div
               className={`max-w-4xl mx-auto transition-all duration-1000 ${
-                isLoaded
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
+                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}
             >
               {/* タイトルセクション */}
@@ -143,9 +141,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                       <div
                         key={mode.id}
                         className={`transition-all duration-300 ${
-                          isLoaded
-                            ? "opacity-100 translate-x-0"
-                            : "opacity-0 translate-x-8"
+                          isLoaded ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
                         }`}
                         style={{ transitionDelay: `${index * 150}ms` }}
                       >
@@ -216,9 +212,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm md:text-base">
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300">
                       <div className="text-xl md:text-2xl mb-2">🎲</div>
-                      <div className="text-white font-medium mb-1">
-                        立体空間
-                      </div>
+                      <div className="text-white font-medium mb-1">立体空間</div>
                       <div className="text-white/70 text-xs md:text-sm">
                         4×4×4の立方体で4つ連続を目指そう
                       </div>

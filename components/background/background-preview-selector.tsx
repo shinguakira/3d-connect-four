@@ -85,12 +85,7 @@ export const backgrounds = [
       <div className="w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
         <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
           <ThreeDScene />
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            autoRotate
-            autoRotateSpeed={0.5}
-          />
+          <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
         </Canvas>
       </div>
     ),
@@ -128,9 +123,7 @@ export default function BackgroundPreviewSelector() {
       {/* Controls */}
       <div className="absolute top-6 left-6 z-10">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-xl border">
-          <h2 className="text-lg font-semibold mb-3 text-gray-800">
-            アニメーション背景プレビュー
-          </h2>
+          <h2 className="text-lg font-semibold mb-3 text-gray-800">アニメーション背景プレビュー</h2>
 
           <Select
             value={selectedBackground.id}
@@ -151,18 +144,14 @@ export default function BackgroundPreviewSelector() {
             </SelectContent>
           </Select>
 
-          <p className="text-sm text-gray-600 mt-2">
-            {selectedBackground.description}
-          </p>
+          <p className="text-sm text-gray-600 mt-2">{selectedBackground.description}</p>
         </div>
       </div>
 
       {/* Info Panel */}
       <div className="absolute bottom-6 right-6 z-10">
         <div className="bg-white/95 backdrop-blur-sm rounded-lg p-4 shadow-xl border max-w-xs">
-          <h3 className="font-semibold text-gray-800 mb-2">
-            {selectedBackground.name}
-          </h3>
+          <h3 className="font-semibold text-gray-800 mb-2">{selectedBackground.name}</h3>
           <p className="text-sm text-gray-600">
             リアルタイムアニメーション付きのConnect
             4タイトル背景。各スタイルに独自のアニメーション効果があります。

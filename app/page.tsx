@@ -14,12 +14,7 @@ import { GamePage } from "@/components/game-page";
 type Player = 1 | 2 | null;
 type GameBoard = Player[][][];
 type GameMode = "two-player" | "vs-ai" | "online";
-type GameState =
-  | "menu"
-  | "playing"
-  | "online-menu"
-  | "online-waiting"
-  | "online-playing";
+type GameState = "menu" | "playing" | "online-menu" | "online-waiting" | "online-playing";
 type AIDifficulty = "easy" | "normal" | "hard";
 type PieceShape =
   | "sphere"
@@ -145,9 +140,7 @@ const AI_DIFFICULTIES = [
 ];
 
 // AI思考用のヘルパー関数
-function getValidMoves(
-  board: GameBoard
-): Array<{ x: number; z: number; y: number }> {
+function getValidMoves(board: GameBoard): Array<{ x: number; z: number; y: number }> {
   const moves: Array<{ x: number; z: number; y: number }> = [];
 
   for (let x = 0; x < GRID_SIZE; x++) {
@@ -164,12 +157,7 @@ function getValidMoves(
   return moves;
 }
 
-function simulateMove(
-  board: GameBoard,
-  x: number,
-  z: number,
-  player: Player
-): GameBoard {
+function simulateMove(board: GameBoard, x: number, z: number, player: Player): GameBoard {
   const newBoard = board.map((layer) => layer.map((row) => [...row]));
 
   for (let y = 0; y < GRID_SIZE; y++) {
@@ -182,11 +170,7 @@ function simulateMove(
   return newBoard;
 }
 
-function evaluatePosition(
-  board: GameBoard,
-  player: Player,
-  difficulty: AIDifficulty
-): number {
+function evaluatePosition(board: GameBoard, player: Player, difficulty: AIDifficulty): number {
   let score = 0;
 
   // 中央付近のポジションにボーナス
@@ -194,8 +178,7 @@ function evaluatePosition(
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let z = 0; z < GRID_SIZE; z++) {
         if (board[x][y][z] === player) {
-          const centerDistance =
-            Math.abs(x - 1.5) + Math.abs(y - 1.5) + Math.abs(z - 1.5);
+          const centerDistance = Math.abs(x - 1.5) + Math.abs(y - 1.5) + Math.abs(z - 1.5);
           const centerBonus = (6 - centerDistance) * 2;
 
           // 難易度に応じて戦略的評価を調整
@@ -220,13 +203,7 @@ function evaluatePosition(
   return score;
 }
 
-function evaluateLines(
-  board: GameBoard,
-  x: number,
-  y: number,
-  z: number,
-  player: Player
-): number {
+function evaluateLines(board: GameBoard, x: number, y: number, z: number, player: Player): number {
   let lineScore = 0;
   const directions = [
     [1, 0, 0],
@@ -256,14 +233,7 @@ function evaluateLines(
       const ny = y + dy * i;
       const nz = z + dz * i;
 
-      if (
-        nx < 0 ||
-        nx >= GRID_SIZE ||
-        ny < 0 ||
-        ny >= GRID_SIZE ||
-        nz < 0 ||
-        nz >= GRID_SIZE
-      )
+      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE)
         break;
 
       if (board[nx][ny][nz] === player) {
@@ -282,14 +252,7 @@ function evaluateLines(
       const ny = y - dy * i;
       const nz = z - dz * i;
 
-      if (
-        nx < 0 ||
-        nx >= GRID_SIZE ||
-        ny < 0 ||
-        ny >= GRID_SIZE ||
-        nz < 0 ||
-        nz >= GRID_SIZE
-      )
+      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE || nz < 0 || nz >= GRID_SIZE)
         break;
 
       if (board[nx][ny][nz] === player) {
@@ -311,12 +274,7 @@ function evaluateLines(
   return lineScore;
 }
 
-function checkWinningMove(
-  board: GameBoard,
-  x: number,
-  z: number,
-  player: Player
-): boolean {
+function checkWinningMove(board: GameBoard, x: number, z: number, player: Player): boolean {
   const testBoard = simulateMove(board, x, z, player);
   return checkWinnerForBoard(testBoard) === player;
 }
@@ -530,10 +488,7 @@ function findReachLines(board: GameBoard, player: Player): ReachLine[] {
   return reachLines;
 }
 
-function getAIMove(
-  board: GameBoard,
-  difficulty: AIDifficulty
-): { x: number; z: number } | null {
+function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: number } | null {
   try {
     const validMoves = getValidMoves(board);
     if (validMoves.length === 0) return null;
@@ -610,10 +565,7 @@ function getAIMove(
   }
 }
 
-function evaluateOpponentThreats(
-  board: GameBoard,
-  difficulty: AIDifficulty
-): number {
+function evaluateOpponentThreats(board: GameBoard, difficulty: AIDifficulty): number {
   let threatScore = 0;
   const validMoves = getValidMoves(board);
 
@@ -684,7 +636,7 @@ export default function Component() {
 
       setOnlineLoading(false);
     },
-    [createRoom]
+    [createRoom],
   );
 
   const handleJoinRoom = useCallback(
@@ -703,7 +655,7 @@ export default function Component() {
 
       setOnlineLoading(false);
     },
-    [joinRoom]
+    [joinRoom],
   );
 
   const handleQuickMatch = useCallback(
@@ -726,7 +678,7 @@ export default function Component() {
 
       setOnlineLoading(false);
     },
-    [quickMatch]
+    [quickMatch],
   );
 
   // Non-host transition: when the server broadcasts game-started via SSE,
@@ -846,10 +798,7 @@ function GameBoard3D({
   return (
     <group>
       {/* グリッドフレーム */}
-      <GridFrame
-        showVertical={showVerticalGrid}
-        showHorizontal={showHorizontalGrid}
-      />
+      <GridFrame showVertical={showVerticalGrid} showHorizontal={showHorizontalGrid} />
 
       {/* リーチライン表示 */}
       {reachLines.map((reachLine, index) => (
@@ -878,8 +827,8 @@ function GameBoard3D({
               player1Shape={player1Shape}
               player2Shape={player2Shape}
             />
-          ))
-        )
+          )),
+        ),
       )}
 
       {/* クリック可能なエリア（底面） */}
@@ -906,7 +855,7 @@ function GameBoard3D({
                     opacity={aiThinking ? 0.1 : 0.3}
                   />
                 </mesh>
-              ))
+              )),
           )}
     </group>
   );
@@ -929,10 +878,7 @@ function ReachLineDisplay({
       // パルス効果
       const pulse = Math.sin(state.clock.elapsedTime * 3) * 0.3 + 0.7;
       lineRef.current.children.forEach((child) => {
-        if (
-          child instanceof THREE.Mesh &&
-          child.material instanceof THREE.MeshStandardMaterial
-        ) {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
           child.material.opacity = pulse;
         }
       });
@@ -981,12 +927,12 @@ function ReachLineDisplay({
         const start = new THREE.Vector3(
           (x1 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
           (y1 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
-          (z1 - GRID_SIZE / 2 + 0.5) * CELL_SIZE
+          (z1 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
         );
         const end = new THREE.Vector3(
           (x2 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
           (y2 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
-          (z2 - GRID_SIZE / 2 + 0.5) * CELL_SIZE
+          (z2 - GRID_SIZE / 2 + 0.5) * CELL_SIZE,
         );
 
         const direction = end.clone().sub(start);
@@ -1031,22 +977,12 @@ function GridFrame({
               .map((_, j) => (
                 <mesh
                   key={`vertical-${i}-${j}`}
-                  position={[
-                    (i - GRID_SIZE / 2) * CELL_SIZE,
-                    0,
-                    (j - GRID_SIZE / 2) * CELL_SIZE,
-                  ]}
+                  position={[(i - GRID_SIZE / 2) * CELL_SIZE, 0, (j - GRID_SIZE / 2) * CELL_SIZE]}
                 >
-                  <cylinderGeometry
-                    args={[0.02, 0.02, GRID_SIZE * CELL_SIZE]}
-                  />
-                  <meshStandardMaterial
-                    color="#64748b"
-                    opacity={0.6}
-                    transparent
-                  />
+                  <cylinderGeometry args={[0.02, 0.02, GRID_SIZE * CELL_SIZE]} />
+                  <meshStandardMaterial color="#64748b" opacity={0.6} transparent />
                 </mesh>
-              ))
+              )),
           )}
 
       {/* 横線（X方向 - 水平グリッド） */}
@@ -1059,23 +995,13 @@ function GridFrame({
               .map((_, j) => (
                 <mesh
                   key={`horizontal-x-${i}-${j}`}
-                  position={[
-                    0,
-                    (i - GRID_SIZE / 2) * CELL_SIZE,
-                    (j - GRID_SIZE / 2) * CELL_SIZE,
-                  ]}
+                  position={[0, (i - GRID_SIZE / 2) * CELL_SIZE, (j - GRID_SIZE / 2) * CELL_SIZE]}
                   rotation={[0, 0, Math.PI / 2]}
                 >
-                  <cylinderGeometry
-                    args={[0.015, 0.015, GRID_SIZE * CELL_SIZE]}
-                  />
-                  <meshStandardMaterial
-                    color="#94a3b8"
-                    opacity={0.4}
-                    transparent
-                  />
+                  <cylinderGeometry args={[0.015, 0.015, GRID_SIZE * CELL_SIZE]} />
+                  <meshStandardMaterial color="#94a3b8" opacity={0.4} transparent />
                 </mesh>
-              ))
+              )),
           )}
 
       {/* 横線（Z方向 - 水平グリッド） */}
@@ -1088,23 +1014,13 @@ function GridFrame({
               .map((_, j) => (
                 <mesh
                   key={`horizontal-z-${i}-${j}`}
-                  position={[
-                    (i - GRID_SIZE / 2) * CELL_SIZE,
-                    (j - GRID_SIZE / 2) * CELL_SIZE,
-                    0,
-                  ]}
+                  position={[(i - GRID_SIZE / 2) * CELL_SIZE, (j - GRID_SIZE / 2) * CELL_SIZE, 0]}
                   rotation={[Math.PI / 2, 0, 0]}
                 >
-                  <cylinderGeometry
-                    args={[0.015, 0.015, GRID_SIZE * CELL_SIZE]}
-                  />
-                  <meshStandardMaterial
-                    color="#94a3b8"
-                    opacity={0.4}
-                    transparent
-                  />
+                  <cylinderGeometry args={[0.015, 0.015, GRID_SIZE * CELL_SIZE]} />
+                  <meshStandardMaterial color="#94a3b8" opacity={0.4} transparent />
                 </mesh>
-              ))
+              )),
           )}
     </group>
   );

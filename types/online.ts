@@ -35,12 +35,7 @@ export interface GameMove {
 }
 
 export interface GameEvent {
-  type:
-    | "player-joined"
-    | "player-left"
-    | "move-made"
-    | "game-reset"
-    | "settings-changed";
+  type: "player-joined" | "player-left" | "move-made" | "game-reset" | "settings-changed";
   data: any;
   timestamp: Date;
 }

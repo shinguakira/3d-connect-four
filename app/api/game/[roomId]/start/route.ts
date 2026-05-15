@@ -4,12 +4,12 @@ import { broadcastToRoom } from "../events/route";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ roomId: string }> }
+  { params }: { params: Promise<{ roomId: string }> },
 ) {
   try {
     const { roomId } = await params;
     console.log("Game start request received for room:", roomId);
-    
+
     const body = await request.json();
     const { playerId } = body;
     console.log("Player ID:", playerId);
@@ -18,35 +18,38 @@ export async function POST(
     let room = gameManager.getRoom(roomId);
     if (!room) {
       console.log("Room not found:", roomId);
-      
+
       // Debug: List all available rooms
       const allRooms = gameManager.getAllRooms();
-      console.log("Available rooms:", allRooms.map(r => ({
-        id: r.id,
-        players: r.players.length,
-        lastActivity: r.lastActivity,
-        gameStarted: r.gameStarted
-      })));
-      
+      console.log(
+        "Available rooms:",
+        allRooms.map((r) => ({
+          id: r.id,
+          players: r.players.length,
+          lastActivity: r.lastActivity,
+          gameStarted: r.gameStarted,
+        })),
+      );
+
       // Clean up inactive rooms and check again
       gameManager.cleanupInactiveRooms();
       const roomAfterCleanup = gameManager.getRoom(roomId);
-      
+
       if (!roomAfterCleanup) {
         return NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             error: "Room not found or has been cleaned up due to inactivity",
             availableRooms: allRooms.length,
             debug: {
               requestedRoom: roomId,
-              timestamp: new Date().toISOString()
-            }
+              timestamp: new Date().toISOString(),
+            },
           },
-          { status: 404 }
+          { status: 404 },
         );
       }
-      
+
       // Room was found after cleanup, use it
       room = roomAfterCleanup;
     }
@@ -57,7 +60,7 @@ export async function POST(
       console.log("Player not found in room:", playerId);
       return NextResponse.json(
         { success: false, error: "Player not found in room" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -66,7 +69,7 @@ export async function POST(
       console.log("Not enough players:", room.players.length);
       return NextResponse.json(
         { success: false, error: "Need exactly 2 players to start" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,7 +80,7 @@ export async function POST(
 
     // Broadcast to all clients that the game has started
     console.log("Broadcasting game-started event to room:", roomId);
-    
+
     // Make 3 broadcast attempts to ensure all clients receive it
     // First immediate broadcast
     broadcastToRoom(roomId, {
@@ -86,7 +89,7 @@ export async function POST(
       message: "Game has started!",
       timestamp: new Date().toISOString(),
     });
-    
+
     // Second broadcast after short delay (200ms)
     setTimeout(() => {
       broadcastToRoom(roomId, {
@@ -94,10 +97,10 @@ export async function POST(
         room,
         message: "Game has started!",
         timestamp: new Date().toISOString(),
-        retryNumber: 1
+        retryNumber: 1,
       });
     }, 200);
-    
+
     // Third broadcast after longer delay (500ms)
     setTimeout(() => {
       broadcastToRoom(roomId, {
@@ -105,7 +108,7 @@ export async function POST(
         room,
         message: "Game has started!",
         timestamp: new Date().toISOString(),
-        retryNumber: 2
+        retryNumber: 2,
       });
     }, 500);
 
@@ -115,9 +118,6 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error in start game route:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }
