@@ -56,7 +56,7 @@ export async function POST(
       },
       playerId: player.id,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: "ルーム参加に失敗しました" },
       { status: 500 },

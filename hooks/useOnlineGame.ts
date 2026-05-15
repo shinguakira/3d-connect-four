@@ -131,7 +131,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
 
         const result = await response.json();
         return result.success;
-      } catch (err) {
+      } catch {
         setError("手の送信に失敗しました");
         return false;
       }
@@ -157,7 +157,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
         };
       }
       throw new Error(result.error);
-    } catch (err) {
+    } catch {
       setError("ルーム作成に失敗しました");
       return null;
     }
@@ -181,7 +181,7 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
         };
       }
       throw new Error(result.error);
-    } catch (err) {
+    } catch {
       setError("ルーム参加に失敗しました");
       return null;
     }

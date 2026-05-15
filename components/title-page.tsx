@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type * as THREE from "three";
 import { backgrounds } from "@/components/background/background-preview-selector";
 
 type GameMode = "two-player" | "vs-ai" | "online";

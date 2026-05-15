@@ -672,7 +672,7 @@ export default function Component() {
         } else {
           setOnlineError("クイックマッチに失敗しました");
         }
-      } catch (err) {
+      } catch {
         setOnlineError("クイックマッチに失敗しました");
       }
 

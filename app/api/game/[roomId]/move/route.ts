@@ -34,7 +34,7 @@ export async function POST(
         settings: room.settings,
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ success: false, error: "手の処理に失敗しました" }, { status: 500 });
   }
 }

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       },
       playerId: player.id,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: "ルーム作成に失敗しました" },
       { status: 500 },
