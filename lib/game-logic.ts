@@ -17,6 +17,9 @@ export function cloneBoard(board: GameBoard): GameBoard {
 }
 
 export function dropY(board: GameBoard, x: number, z: number): number {
+  // Reject non-integer / non-finite coords up front so we never index the
+  // board with NaN/Infinity (which would throw a TypeError downstream).
+  if (!Number.isInteger(x) || !Number.isInteger(z)) return -1;
   if (x < 0 || x >= GRID_SIZE || z < 0 || z >= GRID_SIZE) return -1;
   for (let y = 0; y < GRID_SIZE; y++) {
     if (board[x][y][z] === null) return y;
