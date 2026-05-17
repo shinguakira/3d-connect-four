@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
-import { broadcastToRoom } from "../events/route";
+import { broadcastToRoom } from "@/lib/sse-broadcast";
 
 export async function POST(
   request: NextRequest,

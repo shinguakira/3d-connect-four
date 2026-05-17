@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
+import { lastKnownStates, roomConnections } from "@/lib/sse-broadcast";
 
-// Test-only: wipe all rooms. Disabled in production.
+// Test-only: wipe all rooms and SSE state. Disabled in production.
 export async function POST() {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ success: false, error: "disabled" }, { status: 403 });
   }
   gameManager.__resetForTests();
+  roomConnections.clear();
+  lastKnownStates.clear();
   return NextResponse.json({ success: true });
 }
 
