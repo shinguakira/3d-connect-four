@@ -7,7 +7,7 @@ describe("cn", () => {
   });
 
   it("filters falsy values", () => {
-    expect(cn("a", false && "skip", undefined, null, "b")).toBe("a b");
+    expect(cn("a", false, undefined, null, "b")).toBe("a b");
   });
 
   it("dedupes conflicting tailwind classes (last wins)", () => {
