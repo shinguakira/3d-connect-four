@@ -36,7 +36,6 @@ interface GamePageProps {
 }
 
 const GRID_SIZE = 4;
-const CELL_SIZE = 1.2;
 
 const COLOR_PRESETS = [
   { name: "赤", value: "#ef4444" },
@@ -466,7 +465,7 @@ function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: 
         case "hard":
           randomBonus = Math.random() * 5; // 小さなランダム要素
           // 難しいモードでは相手の次の手も考慮
-          score += evaluateOpponentThreats(testBoard, difficulty) * 10;
+          score += evaluateOpponentThreats(testBoard) * 10;
           break;
       }
 
@@ -492,7 +491,7 @@ function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: 
   }
 }
 
-function evaluateOpponentThreats(board: GameBoard, difficulty: AIDifficulty): number {
+function evaluateOpponentThreats(board: GameBoard): number {
   let threatScore = 0;
   const validMoves = getValidMoves(board);
 
@@ -531,12 +530,14 @@ export function GamePage({
 
   const [player1Color, setPlayer1Color] = useState("#ef4444"); // 赤
   const [player2Color, setPlayer2Color] = useState("#3b82f6"); // 青
-  const [player1Shape, setPlayer1Shape] = useState<PieceShape>("sphere");
-  const [player2Shape, setPlayer2Shape] = useState<PieceShape>("cube");
+  // Shape pickers are not wired to UI yet; keep as constants until they are.
+  const player1Shape: PieceShape = "sphere";
+  const player2Shape: PieceShape = "cube";
 
   const [showSettings, setShowSettings] = useState(false);
   const [showReachLines, setShowReachLines] = useState(true);
-  const [showPlayerReachOnly, setShowPlayerReachOnly] = useState(true);
+  // Setter not exposed yet; keep as constant so future UI can flip it.
+  const showPlayerReachOnly = true;
 
   // モバイル対応の状態
   const [isMobile, setIsMobile] = useState(false);

@@ -46,9 +46,6 @@ export function OnlineWaiting({
     );
   }
 
-  const currentPlayer = room.players.find((p) => p.id === playerId);
-  const otherPlayer = room.players.find((p) => p.id !== playerId);
-  const isHost = currentPlayer?.isHost || false;
   const canStart = room.players.length === 2;
 
   return (
