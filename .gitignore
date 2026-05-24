@@ -31,3 +31,6 @@ next-env.d.ts
 /playwright-report
 /test-results
 /coverage
+
+# throwaway preview screenshots (used for design iteration)
+/doc/images/preview

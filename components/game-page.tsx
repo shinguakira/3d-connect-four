@@ -26,6 +26,7 @@ import {
   visibleReachPlayers,
   type ReachLine,
 } from "@/lib/game-logic";
+import { TurnBanner } from "@/components/turn-banner";
 
 type Player = 1 | 2 | null;
 type GameBoard = Player[][][];
@@ -466,6 +467,15 @@ export function GamePage({
     return checkWinnerForBoard(newBoard);
   }, []);
 
+  // ターン切替バナーのトリガー。currentPlayer が変わるたび、また gameOver
+  // 状態がリセットされた直後 (= 新規ゲーム) にカウンタを bump して
+  // TurnBanner を再マウントする。
+  const [turnBannerTick, setTurnBannerTick] = useState(0);
+  useEffect(() => {
+    if (gameOver) return;
+    setTurnBannerTick((n) => n + 1);
+  }, [currentPlayer, gameOver]);
+
   // dropPiece関数
   const dropPiece = useCallback(
     async (x: number, z: number) => {
@@ -640,6 +650,27 @@ export function GamePage({
     <>
       <title>3D Connect Four - 3D4目並べゲーム</title>
       <div className="w-full h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col">
+        {/* ターン切替バナー (Fire Emblem 風) */}
+        <TurnBanner
+          triggerKey={turnBannerTick}
+          label={`${getPlayerLabel(currentPlayer)}のターン`}
+          sublabel={
+            gameMode === "vs-ai"
+              ? currentPlayer === 1
+                ? "Your Phase"
+                : "Enemy Phase"
+              : `Player ${currentPlayer} Phase`
+          }
+          color={currentPlayer === 1 ? player1Color : player2Color}
+          isOpponent={
+            gameMode === "vs-ai"
+              ? currentPlayer === 2
+              : gameMode === "online"
+                ? localOnlinePlayer !== null && currentPlayer !== localOnlinePlayer
+                : currentPlayer === 2
+          }
+        />
+
         {/* 勝利モーダル */}
         {gameOver && victoryInfo && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
