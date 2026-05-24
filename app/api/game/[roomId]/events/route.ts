@@ -45,35 +45,15 @@ export async function GET(
         controller.enqueue(encoder.encode(errorData));
       }
 
-      let closed = false;
-      const cleanup = () => {
-        if (closed) return;
-        closed = true;
-        clearInterval(interval);
-        clearInterval(heartbeat);
-        if (playerId) {
-          gameManager.updatePlayerConnection(roomId, playerId, false);
-        }
-        unregisterConnection(roomId, controller);
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      };
-
       const interval = setInterval(() => {
-        if (closed) return;
         const currentRoom = gameManager.getRoom(roomId);
         if (!currentRoom) {
-          cleanup();
+          controller.close();
+          clearInterval(interval);
           return;
         }
 
-        // Re-mark connected only if WE just successfully wrote bytes to the
-        // controller (the heartbeat does that every 10s). If the heartbeat
-        // failed, the cleanup path has already flipped connected=false.
-        if (playerId && !closed) {
+        if (playerId) {
           gameManager.updatePlayerConnection(roomId, playerId, true);
         }
 
@@ -85,22 +65,18 @@ export async function GET(
         }
       }, 2000);
 
-      // SSE heartbeat: a comment line is a no-op for the client (EventSource
-      // ignores lines starting with ':') but keeps proxies from idle-closing
-      // the connection AND, crucially, surfaces a dead client via the throw
-      // on the next enqueue. Without this, a silently-dead tab can show as
-      // "connected" until the 30-min room cleanup.
-      const heartbeat = setInterval(() => {
-        if (closed) return;
-        try {
-          controller.enqueue(encoder.encode(": ping\n\n"));
-        } catch {
-          console.log(`SSE heartbeat failed for room ${roomId}, treating as disconnect`);
-          cleanup();
+      request.signal.addEventListener("abort", () => {
+        clearInterval(interval);
+        if (playerId) {
+          gameManager.updatePlayerConnection(roomId, playerId, false);
         }
-      }, 10_000);
-
-      request.signal.addEventListener("abort", cleanup);
+        unregisterConnection(roomId, controller);
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      });
     },
   });
 

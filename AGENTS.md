@@ -124,20 +124,6 @@ menu ──選択──▶ playing                (two-player / vs-ai)
     (markReady の薄いエイリアス) / `makeMove` を提供
   - サーバから `game-restarted` イベントを受けると `restartedTick` を bump。
     `game-page` 側はそれを契機にローカル UI 状態を新ラウンド向けにリセット
-- **切断検知 / 再接続**:
-  - SSE `events/route.ts` は 10 秒ごとに `:ping` heartbeat を送信。
-    `controller.enqueue` が throw したら相手切断とみなしてクリーンアップ +
-    `player.connected = false`。`abort` ハンドラと同経路。
-  - クライアントは `sessionStorage` (タブ単位、リロード耐性あり、別タブとは
-    分離) に `{roomId, playerId}` を保存。マウント時に `GET /api/game/[roomId]`
-    で生存確認してから `online-waiting` に復元。ルームが消えていれば silent
-    に sessionStorage を破棄して title 画面のまま。
-  - `GET /api/game/[roomId]` は reconnect 専用の軽量スナップショット endpoint。
-    404 なら停止、200 なら full room snapshot を返す。
-- **検証ルール (両エンド)**:
-  - `lib/online-validation.ts` の `validatePlayerName` は API ルート (信頼境界)
-    と `online-menu` UI の両方で使う。`MAX_NAME_LEN = 20` (コードポイント数。
-    サロゲートペア絵文字も 1 と数える)。
 - 30 分非アクティブなルームは `cleanupInactiveRooms` で削除
   (`start` ルートで遅延 cleanup を呼ぶ)
 
