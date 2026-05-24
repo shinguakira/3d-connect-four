@@ -175,4 +175,6 @@ lockfile は pnpm。pnpm を優先。
 
 - 元は v0.dev で生成されたプロジェクトで、その後手で書き直されている
   (`package.json` name は `3d-connect-four`)。
-- `README.md` は未整備。エージェントは本ファイルを正とする。
+- README は二言語 ([README.md](README.md) / [README.ja.md](README.ja.md)) で
+  プロジェクト概要・セットアップ・スクリプトをまとめている。エージェントの
+  詳細仕様は本ファイルを正とする。
