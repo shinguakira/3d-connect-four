@@ -792,19 +792,20 @@ export function GamePage({
                   </div>
                 </div>
 
-                {/* 現在のプレイヤー表示 */}
+                {/* 現在のプレイヤー表示 — 長い名前 (online で最大 20 char) で
+                    ヘッダーが崩れないよう max-w + truncate + shrink を付ける */}
                 {!gameOver && (
-                  <div className="flex items-center gap-2 mx-3">
+                  <div className="flex items-center gap-2 mx-2 md:mx-3 min-w-0 flex-shrink">
                     <div
-                      className="w-3 h-3 md:w-4 md:h-4 rounded-full"
+                      className="w-3 h-3 md:w-4 md:h-4 rounded-full flex-shrink-0"
                       style={{ backgroundColor: currentPlayer === 1 ? player1Color : player2Color }}
                     />
-                    <span className="text-sm md:text-base font-medium">
+                    <span className="text-sm md:text-base font-medium truncate max-w-[110px] md:max-w-[220px]">
                       {getPlayerLabel(currentPlayer)}
                       {aiThinking && " (思考中...)"}
                     </span>
                     {showReachLines && reachLines.length > 0 && (
-                      <Zap className="w-3 h-3 md:w-4 md:h-4 text-orange-600" />
+                      <Zap className="w-3 h-3 md:w-4 md:h-4 text-orange-600 flex-shrink-0" />
                     )}
                   </div>
                 )}
