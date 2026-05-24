@@ -1,7 +1,8 @@
 {
-  "name": "my-v0-project",
+  "name": "3d-connect-four",
   "version": "0.1.0",
   "private": true,
+  "description": "立体 4×4×4 の Connect Four。2 プレイヤー / vs AI / オンライン対戦に対応した、Three.js + Next.js 製の 3D ボードゲーム。",
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",

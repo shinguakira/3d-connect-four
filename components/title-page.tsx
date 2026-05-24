@@ -82,7 +82,6 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
 
   return (
     <>
-      <title>3D Connect Four - 3D4目並べゲーム</title>
       <div className="relative min-h-screen w-full overflow-hidden bg-black">
         {/* バックグラウンドビジュアル */}
         <div className="absolute inset-0 z-0">
