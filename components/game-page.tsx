@@ -746,10 +746,17 @@ export function GamePage({
           }
         />
 
-        {/* 勝利時のクラッカー (winner が確定してから modal の裏で炸裂) */}
-        {gameOver && victoryInfo && winner && (
-          <VictoryCrackers triggerKey={winner} accentColor={victoryInfo.color} />
-        )}
+        {/* 勝利時のクラッカー — 負けた側には出さない。
+             two-player は同一画面なので常に出す (どちらかが必ず勝者)。
+             vs-ai は人間 = プレイヤー 1、online は localOnlinePlayer と比較。 */}
+        {gameOver &&
+          victoryInfo &&
+          winner &&
+          (gameMode === "two-player" ||
+            (gameMode === "vs-ai" && winner === 1) ||
+            (gameMode === "online" && localOnlinePlayer != null && winner === localOnlinePlayer)) && (
+            <VictoryCrackers triggerKey={winner} accentColor={victoryInfo.color} />
+          )}
 
         {/* 勝利モーダル */}
         {gameOver && victoryInfo && (
