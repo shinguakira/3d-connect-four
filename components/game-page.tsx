@@ -628,34 +628,6 @@ export function GamePage({
 
   const currentDifficulty = AI_DIFFICULTIES.find((diff) => diff.id === aiDifficulty);
 
-  // 勝利メッセージとアイコンを取得
-  const getVictoryInfo = () => {
-    if (!winner) return null;
-
-    const winnerColor = winner === 1 ? player1Color : player2Color;
-
-    if (gameMode === "vs-ai") {
-      const isPlayerWin = winner === 1;
-      return {
-        title: isPlayerWin ? "勝利！" : "敗北...",
-        subtitle: isPlayerWin ? "おめでとうございます！" : "AIの勝利です",
-        color: winnerColor,
-        Icon: isPlayerWin ? Trophy : Frown,
-        bgColor: isPlayerWin ? "from-green-400 to-blue-500" : "from-red-400 to-pink-500",
-      };
-    } else {
-      return {
-        title: `プレイヤー${winner}の勝利！`,
-        subtitle: "おめでとうございます！",
-        color: winnerColor,
-        Icon: Trophy,
-        bgColor: "from-yellow-400 to-orange-500",
-      };
-    }
-  };
-
-  const victoryInfo = getVictoryInfo();
-
   // Dev-only label override: ?fake-name1=...&fake-name2=... lets us preview
   // the turn banner with arbitrary player names (the longest realistic case
   // being a 20-char online player name). Inert in production.
@@ -680,6 +652,63 @@ export function GamePage({
     }
     return `プレイヤー ${player}`;
   };
+
+  // 勝利メッセージとアイコンを取得。オンラインモードでは「自分視点」で
+  // 表示する (winner と localOnlinePlayer を比較) — 両クライアントが同じ
+  // 「プレイヤーNの勝利」を見ると、負けた側にとっては結果が見えない。
+  const getVictoryInfo = () => {
+    if (!winner) return null;
+
+    const winnerColor = winner === 1 ? player1Color : player2Color;
+
+    if (gameMode === "vs-ai") {
+      const isPlayerWin = winner === 1;
+      return {
+        title: isPlayerWin ? "勝利！" : "敗北...",
+        subtitle: isPlayerWin ? "おめでとうございます！" : "AIの勝利です",
+        color: winnerColor,
+        Icon: isPlayerWin ? Trophy : Frown,
+        bgColor: isPlayerWin ? "from-green-400 to-blue-500" : "from-red-400 to-pink-500",
+      };
+    }
+    if (gameMode === "online") {
+      // localOnlinePlayer may be null briefly during room sync — fall back
+      // to a neutral celebration in that case rather than showing the wrong
+      // perspective.
+      if (localOnlinePlayer == null) {
+        return {
+          title: `プレイヤー${winner}の勝利！`,
+          subtitle: "ゲーム終了",
+          color: winnerColor,
+          Icon: Trophy,
+          bgColor: "from-yellow-400 to-orange-500",
+        };
+      }
+      const isLocalWin = winner === localOnlinePlayer;
+      const opponentName = getPlayerLabel(localOnlinePlayer === 1 ? 2 : 1);
+      return {
+        title: isLocalWin ? "勝利！" : "敗北...",
+        subtitle: isLocalWin
+          ? "おめでとうございます！"
+          : `${opponentName}の勝利です`,
+        color: winnerColor,
+        Icon: isLocalWin ? Trophy : Frown,
+        bgColor: isLocalWin
+          ? "from-green-400 to-blue-500"
+          : "from-red-400 to-pink-500",
+      };
+    }
+    // two-player (パスアンドプレイ): 同じ画面なので winner 番号でよい
+    return {
+      title: `プレイヤー${winner}の勝利！`,
+      subtitle: "おめでとうございます！",
+      color: winnerColor,
+      Icon: Trophy,
+      bgColor: "from-yellow-400 to-orange-500",
+    };
+  };
+
+  const victoryInfo = getVictoryInfo();
 
   return (
     <>
@@ -737,7 +766,11 @@ export function GamePage({
                         ? winner === 1
                           ? "あなたの勝利！"
                           : "AIの勝利！"
-                        : `プレイヤー${winner}の勝利！`}
+                        : gameMode === "online" && localOnlinePlayer != null
+                          ? winner === localOnlinePlayer
+                            ? "あなたの勝利！"
+                            : "あなたの負け…"
+                          : `プレイヤー${winner}の勝利！`}
                     </span>
                   </div>
                   <div className="text-sm text-gray-600">
