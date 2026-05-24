@@ -1,10 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
 import { broadcastToRoom } from "@/lib/sse-broadcast";
+import { validatePlayerName } from "@/lib/online-validation";
 
 export async function POST(request: NextRequest) {
   try {
     const { playerName } = await request.json();
+
+    const validation = validatePlayerName(playerName);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
 
     // 待機中のルームを検索
     const availableRoom = gameManager.findAvailableRoom();
@@ -13,7 +19,7 @@ export async function POST(request: NextRequest) {
       // 既存のルームに参加
       const player = {
         id: crypto.randomUUID(),
-        name: playerName || "プレイヤー2",
+        name: validation.name,
         color: "#3b82f6",
         isHost: false,
         connected: true,
@@ -54,7 +60,7 @@ export async function POST(request: NextRequest) {
     // 新しいルームを作成
     const player = {
       id: crypto.randomUUID(),
-      name: playerName || "プレイヤー1",
+      name: validation.name,
       color: "#ef4444",
       isHost: true,
       connected: true,

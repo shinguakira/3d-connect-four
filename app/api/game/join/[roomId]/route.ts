@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
 import { broadcastToRoom } from "@/lib/sse-broadcast";
+import { validatePlayerName } from "@/lib/online-validation";
 
 export async function POST(
   request: NextRequest,
@@ -10,9 +11,14 @@ export async function POST(
     const { playerName } = await request.json();
     const { roomId } = await params;
 
+    const validation = validatePlayerName(playerName);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
+
     const player = {
       id: crypto.randomUUID(),
-      name: playerName || "プレイヤー2",
+      name: validation.name,
       color: "#3b82f6",
       isHost: false,
       connected: true,

@@ -63,6 +63,62 @@ async function move(
   return request.post(`/api/game/${roomId}/move`, { data: { playerId, x, z } });
 }
 
+test.describe("API: player name validation", () => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request);
+  });
+
+  test("create rejects empty name with 400", async ({ request }) => {
+    const res = await request.post("/api/game/create", { data: { playerName: "" } });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/プレイヤー名/);
+  });
+
+  test("create rejects whitespace-only name with 400", async ({ request }) => {
+    const res = await request.post("/api/game/create", { data: { playerName: "   " } });
+    expect(res.status()).toBe(400);
+  });
+
+  test("create rejects 21+ codepoint name with 400", async ({ request }) => {
+    const tooLong = "あ".repeat(21);
+    const res = await request.post("/api/game/create", { data: { playerName: tooLong } });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/20/);
+  });
+
+  test("create accepts exactly 20 fullwidth JP characters", async ({ request }) => {
+    const name = "あいうえおかきくけこさしすせそたちつてと"; // 20
+    const res = await request.post("/api/game/create", { data: { playerName: name } });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.room.players[0].name).toBe(name);
+  });
+
+  test("join rejects too-long name even if room exists", async ({ request }) => {
+    const host = await request
+      .post("/api/game/create", { data: { playerName: "Host" } })
+      .then((r) => r.json());
+    const res = await request.post(`/api/game/join/${host.room.id}`, {
+      data: { playerName: "A".repeat(50) },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test("quick-match rejects empty name", async ({ request }) => {
+    const res = await request.post("/api/game/quick-match", { data: { playerName: "" } });
+    expect(res.status()).toBe(400);
+  });
+
+  test("server trims surrounding whitespace from accepted names", async ({ request }) => {
+    const res = await request.post("/api/game/create", { data: { playerName: "  Alice  " } });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.room.players[0].name).toBe("Alice");
+  });
+});
+
 test.describe("API: room creation", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer(request);
