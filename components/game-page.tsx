@@ -18,6 +18,7 @@ import {
   RotateCw,
   Settings,
   Trophy,
+  WifiOff,
   X,
   Zap,
   ZoomIn,
@@ -460,6 +461,14 @@ export function GamePage({
     return null;
   }, [gameMode, onlinePlayerId, onlineRoom]);
 
+  // True only in online mode when the OTHER player's connection has dropped.
+  // Drives the "相手切断中" header badge.
+  const opponentDisconnected = useMemo(() => {
+    if (gameMode !== "online" || !onlineRoom?.players || !onlinePlayerId) return false;
+    const opp = onlineRoom.players.find((p: any) => p.id !== onlinePlayerId);
+    return !!opp && opp.connected === false;
+  }, [gameMode, onlineRoom, onlinePlayerId]);
+
   // リーチライン計算 — 相手のリーチは絶対に表示しない (visibleReachPlayers が決定)。
   const reachLines = useMemo(() => {
     if (!showReachLines || gameOver) return [];
@@ -854,6 +863,15 @@ export function GamePage({
                     </span>
                     {showReachLines && reachLines.length > 0 && (
                       <Zap className="w-3 h-3 md:w-4 md:h-4 text-orange-600 flex-shrink-0" />
+                    )}
+                    {opponentDisconnected && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] md:text-xs font-medium flex-shrink-0"
+                        title="相手のプレイヤーがオフラインです"
+                      >
+                        <WifiOff className="w-3 h-3" />
+                        相手切断
+                      </span>
                     )}
                   </div>
                 )}

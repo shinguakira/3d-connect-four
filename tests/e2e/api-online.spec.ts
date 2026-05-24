@@ -119,6 +119,40 @@ test.describe("API: player name validation", () => {
   });
 });
 
+test.describe("API: GET /api/game/[roomId] (used by reconnect)", () => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request);
+  });
+
+  test("returns the room snapshot when it exists", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    const res = await request.get(`/api/game/${host.roomId}`);
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.room.id).toBe(host.roomId);
+    expect(body.room.players).toHaveLength(1);
+    expect(body.room.players[0].id).toBe(host.playerId);
+  });
+
+  test("includes readyPlayerIds and gameStarted in the snapshot", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    await joinRoom(request, host.roomId, "Guest");
+    await startGame(request, host.roomId, host.playerId);
+    const res = await request.get(`/api/game/${host.roomId}`);
+    const body = await res.json();
+    expect(body.room.readyPlayerIds).toContain(host.playerId);
+    expect(body.room.gameStarted).toBe(false);
+  });
+
+  test("returns 404 for unknown room", async ({ request }) => {
+    const res = await request.get("/api/game/NOPE99");
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+  });
+});
+
 test.describe("API: room creation", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer(request);
