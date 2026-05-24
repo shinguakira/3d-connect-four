@@ -137,6 +137,153 @@ export function checkWinner(board: GameBoard): Player {
   return null;
 }
 
+export interface ReachLine {
+  positions: [number, number, number][];
+  player: Exclude<Player, null>;
+  winningPosition: [number, number, number];
+}
+
+const REACH_DIRECTIONS: ReadonlyArray<readonly [number, number, number]> = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+  [1, 1, 0],
+  [1, -1, 0],
+  [0, 1, 1],
+  [0, 1, -1],
+  [1, 0, 1],
+  [1, 0, -1],
+  [-1, 0, 1],
+  [-1, 0, -1],
+  [1, 1, 1],
+  [1, 1, -1],
+  [1, -1, 1],
+  [-1, 1, 1],
+];
+
+export function findReachLines(
+  board: GameBoard,
+  player: Exclude<Player, null>,
+): ReachLine[] {
+  const reachLines: ReachLine[] = [];
+
+  for (let x = 0; x < GRID_SIZE; x++) {
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let z = 0; z < GRID_SIZE; z++) {
+        if (board[x][y][z] !== player) continue;
+
+        for (const [dx, dy, dz] of REACH_DIRECTIONS) {
+          const linePositions: [number, number, number][] = [[x, y, z]];
+          let emptyPosition: [number, number, number] | null = null;
+          let validLine = true;
+
+          for (let i = 1; i < GRID_SIZE; i++) {
+            const nx = x + dx * i;
+            const ny = y + dy * i;
+            const nz = z + dz * i;
+            if (
+              nx < 0 ||
+              nx >= GRID_SIZE ||
+              ny < 0 ||
+              ny >= GRID_SIZE ||
+              nz < 0 ||
+              nz >= GRID_SIZE
+            ) {
+              break;
+            }
+            if (board[nx][ny][nz] === player) {
+              linePositions.push([nx, ny, nz]);
+            } else if (board[nx][ny][nz] === null) {
+              if (emptyPosition === null) {
+                emptyPosition = [nx, ny, nz];
+                linePositions.push([nx, ny, nz]);
+              } else {
+                validLine = false;
+                break;
+              }
+            } else {
+              break;
+            }
+          }
+
+          if (validLine) {
+            for (let i = 1; i < GRID_SIZE; i++) {
+              const nx = x - dx * i;
+              const ny = y - dy * i;
+              const nz = z - dz * i;
+              if (
+                nx < 0 ||
+                nx >= GRID_SIZE ||
+                ny < 0 ||
+                ny >= GRID_SIZE ||
+                nz < 0 ||
+                nz >= GRID_SIZE
+              ) {
+                break;
+              }
+              if (board[nx][ny][nz] === player) {
+                linePositions.unshift([nx, ny, nz]);
+              } else if (board[nx][ny][nz] === null) {
+                if (emptyPosition === null) {
+                  emptyPosition = [nx, ny, nz];
+                  linePositions.unshift([nx, ny, nz]);
+                } else {
+                  validLine = false;
+                  break;
+                }
+              } else {
+                break;
+              }
+            }
+          }
+
+          if (validLine && linePositions.length === 4 && emptyPosition) {
+            const [ex, ey, ez] = emptyPosition;
+            let canPlace = true;
+            if (ey > 0) {
+              let hasSupport = false;
+              for (let checkY = ey - 1; checkY >= 0; checkY--) {
+                if (board[ex][checkY][ez] !== null) {
+                  hasSupport = true;
+                  break;
+                }
+              }
+              if (!hasSupport) canPlace = false;
+            }
+            if (canPlace) {
+              reachLines.push({ positions: linePositions, player, winningPosition: emptyPosition });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return reachLines;
+}
+
+export type ReachVisibilityMode = "two-player" | "vs-ai" | "online";
+
+// リーチライン (reach hint) は対戦相手から見えてはいけない。
+// プレイヤーの hint は、それぞれの「ローカルなプレイヤー」にだけ見せる。
+//   - vs-ai: 人間は常にプレイヤー 1 → プレイヤー 1 の hint のみ
+//   - online: localOnlinePlayer (1 or 2) の hint のみ。未確定なら何も見せない
+//   - two-player: パスアンドプレイ。currentPlayer の hint だけを見せる
+export function visibleReachPlayers(
+  gameMode: ReachVisibilityMode,
+  currentPlayer: Exclude<Player, null>,
+  localOnlinePlayer: 1 | 2 | null,
+): Array<Exclude<Player, null>> {
+  switch (gameMode) {
+    case "vs-ai":
+      return [1];
+    case "online":
+      return localOnlinePlayer ? [localOnlinePlayer] : [];
+    case "two-player":
+      return [currentPlayer];
+  }
+}
+
 export function isWinningMove(
   board: GameBoard,
   x: number,

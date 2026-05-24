@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Users, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, Copy, Gamepad2, Users, Wifi, WifiOff } from "lucide-react";
 import type { GameRoom } from "@/types/online";
 
 interface OnlineWaitingProps {
@@ -160,7 +160,8 @@ export function OnlineWaiting({
                 size="lg"
                 className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
               >
-                🎮 ゲーム開始
+                <Gamepad2 className="w-4 h-4 mr-2" />
+                ゲーム開始
               </Button>
             ) : (
               <Button disabled size="lg" className="w-full">
@@ -178,8 +179,9 @@ export function OnlineWaiting({
           {/* 接続状態の説明 */}
           {!connected && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm text-yellow-700">
-                ⚠️ 接続が不安定です。ページを更新してみてください。
+              <p className="text-sm text-yellow-700 inline-flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                接続が不安定です。ページを更新してみてください。
               </p>
             </div>
           )}

@@ -6,6 +6,26 @@ import { OrbitControls } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import * as THREE from "three";
+import {
+  ArrowLeft,
+  Check,
+  Circle,
+  Frown,
+  Gamepad2,
+  Hand,
+  Home,
+  RotateCw,
+  Settings,
+  Trophy,
+  X,
+  Zap,
+  ZoomIn,
+} from "lucide-react";
+import {
+  findReachLines,
+  visibleReachPlayers,
+  type ReachLine,
+} from "@/lib/game-logic";
 
 type Player = 1 | 2 | null;
 type GameBoard = Player[][][];
@@ -20,12 +40,6 @@ type PieceShape =
   | "dodecahedron"
   | "torus"
   | "diamond";
-
-interface ReachLine {
-  positions: [number, number, number][];
-  player: Player;
-  winningPosition: [number, number, number];
-}
 
 interface GamePageProps {
   gameMode: GameMode;
@@ -46,17 +60,6 @@ const COLOR_PRESETS = [
   { name: "ピンク", value: "#ec4899" },
   { name: "黄", value: "#eab308" },
   { name: "シアン", value: "#06b6d4" },
-];
-
-const PIECE_SHAPES = [
-  { id: "sphere" as PieceShape, name: "球体", icon: "●", description: "クラシックな球形" },
-  { id: "cube" as PieceShape, name: "立方体", icon: "■", description: "シンプルな立方体" },
-  { id: "cylinder" as PieceShape, name: "円柱", icon: "⬢", description: "円柱形状" },
-  { id: "cone" as PieceShape, name: "円錐", icon: "▲", description: "三角錐形状" },
-  { id: "octahedron" as PieceShape, name: "八面体", icon: "◆", description: "8面の多面体" },
-  { id: "dodecahedron" as PieceShape, name: "十二面体", icon: "⬟", description: "12面の多面体" },
-  { id: "torus" as PieceShape, name: "トーラス", icon: "◯", description: "ドーナツ形状" },
-  { id: "diamond" as PieceShape, name: "ダイヤモンド", icon: "♦", description: "ダイヤモンド形状" },
 ];
 
 const AI_DIFFICULTIES = [
@@ -281,139 +284,6 @@ function checkWinnerForBoard(board: GameBoard): Player {
   return null;
 }
 
-// リーチライン検出関数
-function findReachLines(board: GameBoard, player: Player): ReachLine[] {
-  const reachLines: ReachLine[] = [];
-  const directions = [
-    [1, 0, 0],
-    [0, 1, 0],
-    [0, 0, 1],
-    [1, 1, 0],
-    [1, -1, 0],
-    [0, 1, 1],
-    [0, 1, -1],
-    [1, 0, 1],
-    [1, 0, -1],
-    [-1, 0, 1],
-    [-1, 0, -1],
-    [1, 1, 1],
-    [1, 1, -1],
-    [1, -1, 1],
-    [-1, 1, 1],
-  ];
-
-  for (let x = 0; x < GRID_SIZE; x++) {
-    for (let y = 0; y < GRID_SIZE; y++) {
-      for (let z = 0; z < GRID_SIZE; z++) {
-        if (board[x][y][z] !== player) continue;
-
-        for (const [dx, dy, dz] of directions) {
-          const linePositions: [number, number, number][] = [[x, y, z]];
-          let emptyPosition: [number, number, number] | null = null;
-          let validLine = true;
-
-          // 正方向をチェック
-          for (let i = 1; i < GRID_SIZE; i++) {
-            const nx = x + dx * i;
-            const ny = y + dy * i;
-            const nz = z + dz * i;
-
-            if (
-              nx < 0 ||
-              nx >= GRID_SIZE ||
-              ny < 0 ||
-              ny >= GRID_SIZE ||
-              nz < 0 ||
-              nz >= GRID_SIZE
-            ) {
-              break;
-            }
-
-            if (board[nx][ny][nz] === player) {
-              linePositions.push([nx, ny, nz]);
-            } else if (board[nx][ny][nz] === null) {
-              if (emptyPosition === null) {
-                emptyPosition = [nx, ny, nz];
-                linePositions.push([nx, ny, nz]);
-              } else {
-                validLine = false;
-                break;
-              }
-            } else {
-              break;
-            }
-          }
-
-          // 負方向をチェック
-          if (validLine) {
-            for (let i = 1; i < GRID_SIZE; i++) {
-              const nx = x - dx * i;
-              const ny = y - dy * i;
-              const nz = z - dz * i;
-
-              if (
-                nx < 0 ||
-                nx >= GRID_SIZE ||
-                ny < 0 ||
-                ny >= GRID_SIZE ||
-                nz < 0 ||
-                nz >= GRID_SIZE
-              ) {
-                break;
-              }
-
-              if (board[nx][ny][nz] === player) {
-                linePositions.unshift([nx, ny, nz]);
-              } else if (board[nx][ny][nz] === null) {
-                if (emptyPosition === null) {
-                  emptyPosition = [nx, ny, nz];
-                  linePositions.unshift([nx, ny, nz]);
-                } else {
-                  validLine = false;
-                  break;
-                }
-              } else {
-                break;
-              }
-            }
-          }
-
-          // 3つのピース + 1つの空きスペース = リーチライン
-          if (validLine && linePositions.length === 4 && emptyPosition) {
-            // 重力チェック：空きスペースが実際に配置可能か
-            const [ex, ey, ez] = emptyPosition;
-            let canPlace = true;
-
-            // 重力により、下に他のピースがあるかチェック
-            if (ey > 0) {
-              let hasSupport = false;
-              for (let checkY = ey - 1; checkY >= 0; checkY--) {
-                if (board[ex][checkY][ez] !== null) {
-                  hasSupport = true;
-                  break;
-                }
-              }
-              if (!hasSupport) {
-                canPlace = false;
-              }
-            }
-
-            if (canPlace) {
-              reachLines.push({
-                positions: linePositions,
-                player,
-                winningPosition: emptyPosition,
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return reachLines;
-}
-
 function getAIMove(board: GameBoard, difficulty: AIDifficulty): { x: number; z: number } | null {
   try {
     const validMoves = getValidMoves(board);
@@ -536,8 +406,6 @@ export function GamePage({
 
   const [showSettings, setShowSettings] = useState(false);
   const [showReachLines, setShowReachLines] = useState(true);
-  // Setter not exposed yet; keep as constant so future UI can flip it.
-  const showPlayerReachOnly = true;
 
   // モバイル対応の状態
   const [isMobile, setIsMobile] = useState(false);
@@ -574,26 +442,25 @@ export function GamePage({
     setIsProcessing(false); // 処理フラグもリセット
   }, []);
 
-  // リーチライン計算
+  // オンラインモードでの自分のプレイヤー番号 (1 or 2)。null は未確定。
+  const localOnlinePlayer = useMemo<1 | 2 | null>(() => {
+    if (gameMode !== "online" || !onlinePlayerId || !onlineRoom?.players) return null;
+    const idx = onlineRoom.players.findIndex((p: any) => p.id === onlinePlayerId);
+    if (idx === 0) return 1;
+    if (idx === 1) return 2;
+    return null;
+  }, [gameMode, onlinePlayerId, onlineRoom]);
+
+  // リーチライン計算 — 相手のリーチは絶対に表示しない (visibleReachPlayers が決定)。
   const reachLines = useMemo(() => {
     if (!showReachLines || gameOver) return [];
-
+    const visible = visibleReachPlayers(gameMode, currentPlayer, localOnlinePlayer);
     const lines: ReachLine[] = [];
-
-    // プレイヤー1のリーチライン
-    if (!showPlayerReachOnly || gameMode !== "vs-ai") {
-      lines.push(...findReachLines(board, 1));
-    } else if (gameMode === "vs-ai") {
-      lines.push(...findReachLines(board, 1));
+    for (const p of visible) {
+      lines.push(...findReachLines(board, p));
     }
-
-    // プレイヤー2/AIのリーチライン
-    if (!showPlayerReachOnly) {
-      lines.push(...findReachLines(board, 2));
-    }
-
     return lines;
-  }, [board, showReachLines, showPlayerReachOnly, gameMode, gameOver]);
+  }, [board, showReachLines, gameMode, currentPlayer, localOnlinePlayer, gameOver]);
 
   const checkWinner = useCallback((newBoard: GameBoard): Player => {
     return checkWinnerForBoard(newBoard);
@@ -735,24 +602,22 @@ export function GamePage({
     if (!winner) return null;
 
     const winnerColor = winner === 1 ? player1Color : player2Color;
-    const winnerShape = winner === 1 ? player1Shape : player2Shape;
-    const winnerIcon = PIECE_SHAPES.find((s) => s.id === winnerShape)?.icon || "●";
 
     if (gameMode === "vs-ai") {
       const isPlayerWin = winner === 1;
       return {
-        title: isPlayerWin ? "🎉 勝利！" : "😔 敗北...",
+        title: isPlayerWin ? "勝利！" : "敗北...",
         subtitle: isPlayerWin ? "おめでとうございます！" : "AIの勝利です",
         color: winnerColor,
-        icon: winnerIcon,
+        Icon: isPlayerWin ? Trophy : Frown,
         bgColor: isPlayerWin ? "from-green-400 to-blue-500" : "from-red-400 to-pink-500",
       };
     } else {
       return {
-        title: `🎉 プレイヤー${winner}の勝利！`,
+        title: `プレイヤー${winner}の勝利！`,
         subtitle: "おめでとうございます！",
         color: winnerColor,
-        icon: winnerIcon,
+        Icon: Trophy,
         bgColor: "from-yellow-400 to-orange-500",
       };
     }
@@ -781,8 +646,8 @@ export function GamePage({
             <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 overflow-hidden animate-in zoom-in duration-500">
               {/* ヘッダー部分 */}
               <div className={`bg-gradient-to-r ${victoryInfo.bgColor} p-6 text-center text-white`}>
-                <div className="text-4xl md:text-6xl mb-3" style={{ color: victoryInfo.color }}>
-                  {victoryInfo.icon}
+                <div className="mb-3 flex justify-center" style={{ color: victoryInfo.color }}>
+                  <victoryInfo.Icon className="w-12 h-12 md:w-16 md:h-16" strokeWidth={2.5} />
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold mb-2">{victoryInfo.title}</h2>
                 <p className="text-base md:text-lg opacity-90">{victoryInfo.subtitle}</p>
@@ -824,7 +689,8 @@ export function GamePage({
                     size="lg"
                     className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
                   >
-                    🎮 新しいゲーム
+                    <Gamepad2 className="w-4 h-4 mr-2" />
+                    新しいゲーム
                   </Button>
                   <Button
                     onClick={onBackToMenu}
@@ -832,7 +698,8 @@ export function GamePage({
                     size="lg"
                     className="w-full border-2 hover:bg-gray-50 font-semibold py-3 bg-transparent"
                   >
-                    🏠 メニューに戻る
+                    <Home className="w-4 h-4 mr-2" />
+                    メニューに戻る
                   </Button>
                 </div>
               </div>
@@ -873,7 +740,7 @@ export function GamePage({
                       {aiThinking && " (思考中...)"}
                     </span>
                     {showReachLines && reachLines.length > 0 && (
-                      <span className="text-xs text-orange-600 font-medium">⚡</span>
+                      <Zap className="w-3 h-3 md:w-4 md:h-4 text-orange-600" />
                     )}
                   </div>
                 )}
@@ -886,15 +753,16 @@ export function GamePage({
                     className="h-8 w-8 p-0 md:h-10 md:w-10"
                     title="メニューに戻る"
                   >
-                    <span className="text-lg">←</span>
+                    <ArrowLeft className="w-5 h-5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowSettings(!showSettings)}
                     className="h-8 w-8 p-0 md:h-10 md:w-10"
+                    title={showSettings ? "閉じる" : "設定"}
                   >
-                    <span className="text-lg">{showSettings ? "×" : "⚙"}</span>
+                    {showSettings ? <X className="w-5 h-5" /> : <Settings className="w-5 h-5" />}
                   </Button>
                 </div>
               </div>
@@ -958,9 +826,18 @@ export function GamePage({
               <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white text-center">
                 <div className="text-sm">
                   <div className="flex justify-center items-center gap-4 text-xs">
-                    <span>🔄 回転: 1本指</span>
-                    <span>🔍 ズーム: 2本指</span>
-                    <span>👆 配置: タップ</span>
+                    <span className="inline-flex items-center gap-1">
+                      <RotateCw className="w-3.5 h-3.5" />
+                      回転: 1本指
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <ZoomIn className="w-3.5 h-3.5" />
+                      ズーム: 2本指
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Hand className="w-3.5 h-3.5" />
+                      配置: タップ
+                    </span>
                   </div>
                 </div>
               </div>
@@ -979,8 +856,9 @@ export function GamePage({
                   size="sm"
                   onClick={() => setShowSettings(false)}
                   className="h-8 w-8 p-0"
+                  title="閉じる"
                 >
-                  ×
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
 
@@ -1019,25 +897,40 @@ export function GamePage({
                       variant={showReachLines ? "default" : "outline"}
                       size="sm"
                       onClick={() => setShowReachLines(!showReachLines)}
-                      className="w-full justify-start text-sm"
+                      className="w-full justify-start text-sm gap-2"
                     >
-                      {showReachLines ? "✓" : "○"} リーチライン表示
+                      {showReachLines ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Circle className="w-4 h-4" />
+                      )}
+                      リーチライン表示
                     </Button>
                     <Button
                       variant={showVerticalGrid ? "default" : "outline"}
                       size="sm"
                       onClick={() => setShowVerticalGrid(!showVerticalGrid)}
-                      className="w-full justify-start text-sm"
+                      className="w-full justify-start text-sm gap-2"
                     >
-                      {showVerticalGrid ? "✓" : "○"} 垂直グリッド
+                      {showVerticalGrid ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Circle className="w-4 h-4" />
+                      )}
+                      垂直グリッド
                     </Button>
                     <Button
                       variant={showHorizontalGrid ? "default" : "outline"}
                       size="sm"
                       onClick={() => setShowHorizontalGrid(!showHorizontalGrid)}
-                      className="w-full justify-start text-sm"
+                      className="w-full justify-start text-sm gap-2"
                     >
-                      {showHorizontalGrid ? "✓" : "○"} 水平グリッド
+                      {showHorizontalGrid ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Circle className="w-4 h-4" />
+                      )}
+                      水平グリッド
                     </Button>
                   </div>
                 </div>
@@ -1096,7 +989,8 @@ export function GamePage({
 
                 <div className="pt-4 border-t">
                   <Button onClick={resetGame} variant="outline" className="w-full bg-transparent">
-                    🔄 ゲームリセット
+                    <RotateCw className="w-4 h-4 mr-2" />
+                    ゲームリセット
                   </Button>
                 </div>
               </div>
