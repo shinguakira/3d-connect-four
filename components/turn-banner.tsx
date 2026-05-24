@@ -36,6 +36,16 @@ export function TurnBanner({ triggerKey, label, color, sublabel, isOpponent }: T
   const topDir = isOpponent ? "-translate-x-full" : "translate-x-full";
   const bottomDir = isOpponent ? "translate-x-full" : "-translate-x-full";
 
+  // Label length tiers — shorter labels get the full punch, longer ones
+  // (e.g. 20-char online player names) shrink and are allowed to wrap.
+  const labelLen = label.length;
+  const labelSizeClass =
+    labelLen <= 10
+      ? "text-3xl md:text-6xl"
+      : labelLen <= 16
+        ? "text-2xl md:text-5xl"
+        : "text-xl md:text-4xl";
+
   return (
     <div
       key={triggerKey}
@@ -63,7 +73,7 @@ export function TurnBanner({ triggerKey, label, color, sublabel, isOpponent }: T
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="turn-banner-text text-center px-8 md:px-12">
           <div
-            className="text-4xl md:text-6xl font-black tracking-wider text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.5)]"
+            className={`${labelSizeClass} font-black tracking-normal md:tracking-wider text-white drop-shadow-[0_3px_6px_rgba(0,0,0,0.5)] break-words leading-tight max-w-[90vw]`}
             style={{ textShadow: `0 0 18px ${color}cc, 0 2px 4px rgba(0,0,0,0.6)` }}
           >
             {label}

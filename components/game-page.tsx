@@ -649,8 +649,22 @@ export function GamePage({
 
   const victoryInfo = getVictoryInfo();
 
+  // Dev-only label override: ?fake-name1=...&fake-name2=... lets us preview
+  // the turn banner with arbitrary player names (the longest realistic case
+  // being a 20-char online player name). Inert in production.
+  const fakeNames = useMemo(() => {
+    if (process.env.NODE_ENV === "production") return null;
+    if (typeof window === "undefined") return null;
+    const sp = new URLSearchParams(window.location.search);
+    const n1 = sp.get("fake-name1");
+    const n2 = sp.get("fake-name2");
+    if (!n1 && !n2) return null;
+    return { 1: n1 ?? "プレイヤー 1", 2: n2 ?? "プレイヤー 2" } as Record<1 | 2, string>;
+  }, []);
+
   // getPlayerLabel関数
   const getPlayerLabel = (player: number) => {
+    if (fakeNames && (player === 1 || player === 2)) return fakeNames[player as 1 | 2];
     if (gameMode === "vs-ai") {
       return player === 1 ? "あなた" : "AI";
     } else if (gameMode === "online" && onlineRoom) {
