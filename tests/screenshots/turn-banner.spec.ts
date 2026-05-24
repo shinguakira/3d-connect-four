@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 import path from "node:path";
 
 const OUT = path.resolve(__dirname, "../../doc/images/preview");

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { gotoOnline, makeMoveAsApi, pressStartGame, resetServer } from "./helpers";
+import { gotoOnline, makeMoveAsApi, pressReadyOnBoth, resetServer } from "./helpers";
 
 test.describe("Online: in-game state propagation", () => {
   test.setTimeout(180_000);
@@ -21,7 +21,7 @@ test.describe("Online: in-game state propagation", () => {
       const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" });
       const b = await gotoOnline(pageB, { kind: "quick", name: "Bob" });
       await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 });
-      await pressStartGame(pageA);
+      await pressReadyOnBoth(pageA, pageB);
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
       await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 
@@ -66,7 +66,7 @@ test.describe("Online: in-game state propagation", () => {
       const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" });
       const b = await gotoOnline(pageB, { kind: "quick", name: "Bob" });
       await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 });
-      await pressStartGame(pageA);
+      await pressReadyOnBoth(pageA, pageB);
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
       await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 
@@ -86,12 +86,13 @@ test.describe("Online: in-game state propagation", () => {
         expect(r.body.success).toBe(true);
       }
 
-      // Both clients render the victory modal with Alice as the winner.
-      // (The modal heading is rendered by GamePage when room.winner is set.)
-      await expect(pageA.getByRole("button", { name: /新しいゲーム/ })).toBeVisible({
+      // Both clients render the victory modal. In online mode the rematch
+      // button now reads "もう一度プレイ (準備完了)" since restarting requires
+      // both players to approve (same two-approval gate as the first start).
+      await expect(pageA.getByRole("button", { name: /もう一度プレイ/ })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(pageB.getByRole("button", { name: /新しいゲーム/ })).toBeVisible({
+      await expect(pageB.getByRole("button", { name: /もう一度プレイ/ })).toBeVisible({
         timeout: 15_000,
       });
 
@@ -117,7 +118,7 @@ test.describe("Online: in-game state propagation", () => {
       const a = await gotoOnline(pageA, { kind: "quick", name: "Alice" });
       const b = await gotoOnline(pageB, { kind: "quick", name: "Bob" });
       await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 });
-      await pressStartGame(pageA);
+      await pressReadyOnBoth(pageA, pageB);
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 
       // Both players keep dropping into the same column (0,0). After 4 drops the column is full.

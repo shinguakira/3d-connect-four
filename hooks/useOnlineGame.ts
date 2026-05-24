@@ -8,6 +8,9 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  // Bumped each time the server confirms a rematch — consumers (game-page)
+  // use this as a useEffect dep to clear local UI state for the new round.
+  const [restartedTick, setRestartedTick] = useState(0);
 
   // Server-Sent Events で状態を監視
   useEffect(() => {
@@ -42,15 +45,15 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
           if (data.type === "game-started") {
             setRoom(data.room);
             setGameStarted(true);
-            const isHost = data.room?.players?.find((p: any) => p.id === playerId)?.isHost || false;
-            console.log(
-              `Game started event received by ${isHost ? "HOST" : "NON-HOST"} player:`,
-              data,
-            );
+          }
 
-            // Force UI update for all clients to ensure they transition to game screen
-            const startTime = new Date().toISOString();
-            console.log(`Game officially started at: ${startTime}`);
+          // Rematch: server has reset the board after both players signaled
+          // ready following a finished game. Push the fresh room state and
+          // bump the restart counter so consumers can clear local state.
+          if (data.type === "game-restarted") {
+            setRoom(data.room);
+            setGameStarted(true);
+            setRestartedTick((n) => n + 1);
           }
         } catch (err) {
           console.error("イベント解析エラー:", err);
@@ -90,31 +93,47 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
     };
   }, [roomId, playerId]);
 
-  const startGame = useCallback(async () => {
-    if (!roomId || !playerId) return false;
+  // Signal that the local player is ready to start (or rematch). The game
+  // only actually transitions when BOTH players have called this. The
+  // response tells the caller which transition (if any) just fired:
+  //   { started: true } — game just began (first start).
+  //   { restarted: true } — board reset for a rematch.
+  //   both false — opponent still needs to ready up.
+  const markReady = useCallback(async () => {
+    if (!roomId || !playerId) return { ok: false as const, started: false, restarted: false };
 
     try {
       const response = await fetch(`/api/game/${roomId}/start`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId }),
       });
 
       const result = await response.json();
-      if (result.success) {
-        setGameStarted(true);
-        return true;
+      if (!result.success) {
+        setError(result.error || "準備完了の送信に失敗しました");
+        return { ok: false as const, started: false, restarted: false };
       }
-      setError(result.error || "ゲーム開始に失敗しました");
-      return false;
+      if (result.started) setGameStarted(true);
+      if (result.restarted) setRestartedTick((n) => n + 1);
+      return {
+        ok: true as const,
+        started: !!result.started,
+        restarted: !!result.restarted,
+      };
     } catch (err) {
-      console.error("Start game error:", err);
-      setError("ゲーム開始に失敗しました");
-      return false;
+      console.error("Mark ready error:", err);
+      setError("準備完了の送信に失敗しました");
+      return { ok: false as const, started: false, restarted: false };
     }
   }, [roomId, playerId]);
+
+  // Back-compat alias for existing call sites. Returns just the boolean
+  // success — the page-state machine only needs that.
+  const startGame = useCallback(async () => {
+    const r = await markReady();
+    return r.ok;
+  }, [markReady]);
 
   const makeMove = useCallback(
     async (x: number, z: number) => {
@@ -219,7 +238,9 @@ export function useOnlineGame(roomId: string | null, playerId: string | null) {
     connected,
     error,
     gameStarted,
+    restartedTick,
     makeMove,
+    markReady,
     startGame,
     createRoom,
     joinRoom,

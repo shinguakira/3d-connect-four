@@ -15,6 +15,7 @@ class GameManager {
       winner: null,
       gameOver: false,
       gameStarted: false,
+      readyPlayerIds: [],
       createdAt: new Date(),
       lastActivity: new Date(),
       settings: {
@@ -61,6 +62,65 @@ class GameManager {
     }
     room.lastActivity = new Date();
 
+    return room;
+  }
+
+  // Mark a player as ready to start (or rematch). The transition to
+  // gameStarted only fires once BOTH players have signaled ready — single-side
+  // approval is not enough. Same mechanism handles a rematch after a finished
+  // game: when gameOver was true and both players ready, the board resets and
+  // the game resumes with currentPlayer=1.
+  //
+  // Idempotent: a player calling markReady twice doesn't double-count.
+  // Returns null if the room or player is unknown, or there aren't yet 2
+  // players in the room.
+  markReady(
+    roomId: string,
+    playerId: string,
+  ): { room: GameRoom; started: boolean; restarted: boolean } | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (room.players.length !== 2) return null;
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) return null;
+
+    if (!room.readyPlayerIds.includes(playerId)) {
+      room.readyPlayerIds = [...room.readyPlayerIds, playerId];
+    }
+    room.lastActivity = new Date();
+
+    const bothReady = room.players.every((p) => room.readyPlayerIds.includes(p.id));
+    if (!bothReady) {
+      return { room, started: false, restarted: false };
+    }
+
+    // Both players ready — fire the appropriate transition.
+    const wasGameOver = room.gameOver;
+    const wasNotStarted = !room.gameStarted;
+
+    if (wasGameOver) {
+      // Rematch: reset board and resume.
+      room.gameState = createEmptyBoard();
+      room.currentPlayer = 1;
+      room.winner = null;
+      room.gameOver = false;
+      room.gameStarted = true;
+    } else if (wasNotStarted) {
+      room.gameStarted = true;
+    }
+    // Clear readiness for the next phase (next rematch, etc.)
+    room.readyPlayerIds = [];
+
+    return { room, started: wasNotStarted, restarted: wasGameOver };
+  }
+
+  // Drop a player's readiness (e.g. they want to cancel before opponent agrees).
+  unmarkReady(roomId: string, playerId: string): GameRoom | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+    if (!room.readyPlayerIds.includes(playerId)) return room;
+    room.readyPlayerIds = room.readyPlayerIds.filter((id) => id !== playerId);
+    room.lastActivity = new Date();
     return room;
   }
 

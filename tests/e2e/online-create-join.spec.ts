@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { gotoOnline, pressStartGame, resetServer } from "./helpers";
+import { gotoOnline, pressReadyOnBoth, resetServer } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(120_000);
@@ -32,8 +32,10 @@ test.describe("Online: Create + Join by room ID (UI)", () => {
       await expect(pageA.getByText("Bob")).toBeVisible();
       await expect(pageB.getByText("Alice")).toBeVisible();
 
-      // The guest presses start (proving non-host can also kick the game off).
-      await pressStartGame(pageB);
+      // Both players must mark ready — the game transitions only after the
+      // second one. Order doesn't matter, but we ready the host first then
+      // the guest so the guest's press is the one that fires "game-started".
+      await pressReadyOnBoth(pageA, pageB);
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
       await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 

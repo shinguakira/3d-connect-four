@@ -58,8 +58,24 @@ export async function gotoOnline(
   return { roomId: body.room.id, playerId: body.playerId };
 }
 
+// Click the lobby's "準備完了" button on a single client. This only marks the
+// caller ready — the game does NOT begin until both players have done it.
+// See `pressReadyOnBoth` for the canonical two-client handshake.
+export async function pressReady(page: Page) {
+  await page.getByRole("button", { name: /準備完了/ }).click();
+}
+
+// Ready-up both clients to actually transition into the game canvas, in the
+// safer order: opponent first (their "waiting for opponent" state primes the
+// SSE pipe), then ourselves (which fires the start broadcast).
+export async function pressReadyOnBoth(pageA: Page, pageB: Page) {
+  await pressReady(pageA);
+  await pressReady(pageB);
+}
+
+// Back-compat alias for older tests. Same semantics as pressReady.
 export async function pressStartGame(page: Page) {
-  await page.getByRole("button", { name: /ゲーム開始/ }).click();
+  await pressReady(page);
 }
 
 export async function makeMoveAsApi(

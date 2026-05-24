@@ -14,6 +14,7 @@ import {
   Gamepad2,
   Hand,
   Home,
+  Hourglass,
   RotateCw,
   Settings,
   Trophy,
@@ -49,6 +50,11 @@ interface GamePageProps {
   onlineRoom?: any;
   onlinePlayerId?: string | null;
   makeOnlineMove?: (x: number, z: number) => Promise<boolean>;
+  // Mark the local player as ready for a rematch. Only meaningful in online
+  // mode. Resolves once the server acknowledges; the actual board reset is
+  // driven by the SSE `game-restarted` event that flows back through
+  // `onlineRoom` (gameOver → false).
+  markOnlineReady?: () => Promise<{ ok: boolean; started: boolean; restarted: boolean }>;
 }
 
 const GRID_SIZE = 4;
@@ -382,6 +388,7 @@ export function GamePage({
   onlineRoom,
   onlinePlayerId,
   makeOnlineMove,
+  markOnlineReady,
 }: GamePageProps) {
   const [board, setBoard] = useState<GameBoard>(() =>
     Array(GRID_SIZE)
@@ -555,16 +562,16 @@ export function GamePage({
     ],
   );
 
-  // オンラインルームの状態変更を監視
+  // オンラインルームの状態変更を監視。サーバが rematch リセットを送ってきた
+  // ときに winner/gameOver も同期しないと勝利モーダルが残り続けるので、
+  // 全フィールドを毎回上書きする。
   useEffect(() => {
     if (onlineRoom && gameMode === "online") {
       setBoard(onlineRoom.gameState);
       setCurrentPlayer(onlineRoom.currentPlayer);
-
-      if (onlineRoom.winner) {
-        setWinner(onlineRoom.winner);
-        setGameOver(true);
-      }
+      setWinner(onlineRoom.winner ?? null);
+      setGameOver(!!onlineRoom.gameOver);
+      if (!onlineRoom.gameOver) setIsProcessing(false);
     }
   }, [onlineRoom, gameMode]);
 
@@ -746,16 +753,24 @@ export function GamePage({
                   </div>
                 </div>
 
-                {/* ボタン */}
+                {/* ボタン — オンラインモードでは両者の同意制 (もう一度プレイ) */}
                 <div className="space-y-3">
-                  <Button
-                    onClick={resetGame}
-                    size="lg"
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
-                  >
-                    <Gamepad2 className="w-4 h-4 mr-2" />
-                    新しいゲーム
-                  </Button>
+                  {gameMode === "online" ? (
+                    <OnlineRematchButton
+                      onlineRoom={onlineRoom}
+                      onlinePlayerId={onlinePlayerId}
+                      onMarkReady={markOnlineReady}
+                    />
+                  ) : (
+                    <Button
+                      onClick={resetGame}
+                      size="lg"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
+                    >
+                      <Gamepad2 className="w-4 h-4 mr-2" />
+                      新しいゲーム
+                    </Button>
+                  )}
                   <Button
                     onClick={onBackToMenu}
                     variant="outline"
@@ -1064,6 +1079,63 @@ export function GamePage({
         )}
       </div>
     </>
+  );
+}
+
+// Victory-modal rematch button for online mode. Both players must press it
+// before the room actually resets — same two-approval rule as the initial
+// start. While waiting on the opponent the button is disabled and shows a
+// "相手の準備を待っています..." message; when the SSE rematch arrives the
+// modal closes via the gameOver→false sync in the parent.
+function OnlineRematchButton({
+  onlineRoom,
+  onlinePlayerId,
+  onMarkReady,
+}: {
+  onlineRoom?: any;
+  onlinePlayerId?: string | null;
+  onMarkReady?: () => Promise<{ ok: boolean; started: boolean; restarted: boolean }>;
+}) {
+  const [pending, setPending] = useState(false);
+  const readyIds: string[] = onlineRoom?.readyPlayerIds ?? [];
+  const myReady = !!onlinePlayerId && readyIds.includes(onlinePlayerId);
+  const opponentReady = onlineRoom?.players?.some(
+    (p: any) => p.id !== onlinePlayerId && readyIds.includes(p.id),
+  );
+
+  const handleClick = async () => {
+    if (!onMarkReady || pending || myReady) return;
+    setPending(true);
+    try {
+      await onMarkReady();
+    } finally {
+      setPending(false);
+    }
+  };
+
+  if (myReady) {
+    return (
+      <Button
+        disabled
+        size="lg"
+        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 opacity-90 text-white font-semibold py-3"
+      >
+        <Hourglass className="w-4 h-4 mr-2 animate-pulse" />
+        {opponentReady ? "再開しています…" : "相手の準備を待っています…"}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      onClick={handleClick}
+      disabled={pending}
+      size="lg"
+      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3"
+    >
+      <Gamepad2 className="w-4 h-4 mr-2" />
+      もう一度プレイ (準備完了)
+    </Button>
   );
 }
 

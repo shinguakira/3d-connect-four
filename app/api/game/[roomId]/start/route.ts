@@ -2,122 +2,105 @@ import { NextRequest, NextResponse } from "next/server";
 import { gameManager } from "@/lib/game-manager";
 import { broadcastToRoom } from "@/lib/sse-broadcast";
 
+// "Start" is now a two-step ready-check: each player must POST here before the
+// game (or a rematch) actually begins. The endpoint is idempotent — the same
+// player POSTing twice does not double-count.
+//
+// Response shape:
+//   { success: true, room, started: boolean, restarted: boolean }
+// `started` is true only on the call that flipped gameStarted from false →
+// true. `restarted` is true on the call that completed a rematch (gameOver
+// → board reset). Both are false for an "I'm ready, waiting for opponent"
+// call.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ roomId: string }> },
 ) {
   try {
     const { roomId } = await params;
-    console.log("Game start request received for room:", roomId);
-
     const body = await request.json();
     const { playerId } = body;
-    console.log("Player ID:", playerId);
 
-    // Get the room
-    let room = gameManager.getRoom(roomId);
+    const room = gameManager.getRoom(roomId);
     if (!room) {
-      console.log("Room not found:", roomId);
-
-      // Debug: List all available rooms
-      const allRooms = gameManager.getAllRooms();
-      console.log(
-        "Available rooms:",
-        allRooms.map((r) => ({
-          id: r.id,
-          players: r.players.length,
-          lastActivity: r.lastActivity,
-          gameStarted: r.gameStarted,
-        })),
-      );
-
-      // Clean up inactive rooms and check again
       gameManager.cleanupInactiveRooms();
-      const roomAfterCleanup = gameManager.getRoom(roomId);
-
-      if (!roomAfterCleanup) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Room not found or has been cleaned up due to inactivity",
-            availableRooms: allRooms.length,
-            debug: {
-              requestedRoom: roomId,
-              timestamp: new Date().toISOString(),
-            },
-          },
-          { status: 404 },
-        );
-      }
-
-      // Room was found after cleanup, use it
-      room = roomAfterCleanup;
+      return NextResponse.json(
+        { success: false, error: "Room not found" },
+        { status: 404 },
+      );
     }
 
-    // Check if player is in the room
     const player = room.players.find((p) => p.id === playerId);
     if (!player) {
-      console.log("Player not found in room:", playerId);
       return NextResponse.json(
         { success: false, error: "Player not found in room" },
         { status: 404 },
       );
     }
 
-    // Check if we have enough players
     if (room.players.length !== 2) {
-      console.log("Not enough players:", room.players.length);
       return NextResponse.json(
         { success: false, error: "Need exactly 2 players to start" },
         { status: 400 },
       );
     }
 
-    // Mark the game as started in the room state
-    room.gameStarted = true;
-    room.lastActivity = new Date();
-    console.log("Game marked as started for room:", roomId);
+    const result = gameManager.markReady(roomId, playerId);
+    if (!result) {
+      return NextResponse.json(
+        { success: false, error: "Failed to mark ready" },
+        { status: 500 },
+      );
+    }
 
-    // Broadcast to all clients that the game has started
-    console.log("Broadcasting game-started event to room:", roomId);
-
-    // Make 3 broadcast attempts to ensure all clients receive it
-    // First immediate broadcast
+    // Always push a fresh room snapshot so the opponent's UI updates the
+    // readiness indicator.
     broadcastToRoom(roomId, {
-      type: "game-started",
-      room,
-      message: "Game has started!",
+      type: "game-state",
+      room: result.room,
       timestamp: new Date().toISOString(),
     });
 
-    // Second broadcast after short delay (200ms)
-    setTimeout(() => {
-      broadcastToRoom(roomId, {
-        type: "game-started",
-        room,
+    if (result.started) {
+      // First-time start. Triple-broadcast (immediate + 200ms + 500ms) to
+      // mirror the original retry behavior — guards against SSE buffering.
+      const payload = {
+        type: "game-started" as const,
+        room: result.room,
         message: "Game has started!",
-        timestamp: new Date().toISOString(),
-        retryNumber: 1,
-      });
-    }, 200);
+      };
+      broadcastToRoom(roomId, { ...payload, timestamp: new Date().toISOString() });
+      setTimeout(
+        () => broadcastToRoom(roomId, { ...payload, timestamp: new Date().toISOString(), retryNumber: 1 }),
+        200,
+      );
+      setTimeout(
+        () => broadcastToRoom(roomId, { ...payload, timestamp: new Date().toISOString(), retryNumber: 2 }),
+        500,
+      );
+    }
 
-    // Third broadcast after longer delay (500ms)
-    setTimeout(() => {
-      broadcastToRoom(roomId, {
-        type: "game-started",
-        room,
-        message: "Game has started!",
-        timestamp: new Date().toISOString(),
-        retryNumber: 2,
-      });
-    }, 500);
+    if (result.restarted) {
+      const payload = {
+        type: "game-restarted" as const,
+        room: result.room,
+        message: "Rematch started!",
+      };
+      broadcastToRoom(roomId, { ...payload, timestamp: new Date().toISOString() });
+      setTimeout(
+        () => broadcastToRoom(roomId, { ...payload, timestamp: new Date().toISOString(), retryNumber: 1 }),
+        200,
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      room,
+      room: result.room,
+      started: result.started,
+      restarted: result.restarted,
     });
   } catch (error) {
-    console.error("Error in start game route:", error);
+    console.error("Error in start (ready) route:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

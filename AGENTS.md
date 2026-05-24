@@ -110,9 +110,20 @@ menu ──選択──▶ playing                (two-player / vs-ai)
     変化時のみ `broadcastToRoom` で全クライアントに push
   - `start/route.ts` は 0ms / 200ms / 500ms の **3 回ブロードキャスト** で
     取りこぼし対策をしている
+- **両者同意のスタート / リマッチゲート**: `start/route.ts` は単発で
+  `gameStarted` を立てない。各プレイヤーが POST すると
+  `GameRoom.readyPlayerIds` に追加され、**両者が揃ったタイミングで初めて**
+  `gameStarted: true` (初回) または board リセット (リマッチ) が発火する。
+  - 第 2 プレイヤーの POST レスポンスは `{ started: true }` または
+    `{ restarted: true }` を返す。第 1 プレイヤーの POST は両方 false。
+  - リマッチは `gameOver === true` の状態で markReady されると判定される
+    (ゲーム途中での board リセット手段はない)。
 - クライアント: `hooks/useOnlineGame.ts`
   - `EventSource` で接続、エラー時は指数バックオフで最大 5 回再接続
-  - `createRoom` / `joinRoom` / `quickMatch` / `startGame` / `makeMove` を提供
+  - `createRoom` / `joinRoom` / `quickMatch` / `markReady` / `startGame`
+    (markReady の薄いエイリアス) / `makeMove` を提供
+  - サーバから `game-restarted` イベントを受けると `restartedTick` を bump。
+    `game-page` 側はそれを契機にローカル UI 状態を新ラウンド向けにリセット
 - 30 分非アクティブなルームは `cleanupInactiveRooms` で削除
   (`start` ルートで遅延 cleanup を呼ぶ)
 

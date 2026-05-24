@@ -10,6 +10,10 @@ export interface GameRoom {
   createdAt: Date;
   lastActivity: Date;
   gameStarted: boolean;
+  // Player IDs who have signaled they are ready to start (or rematch).
+  // The room flips to gameStarted=true / rematch-resets only when this
+  // set contains all 2 players. Cleared once the transition fires.
+  readyPlayerIds: string[];
   settings: {
     player1Color: string;
     player2Color: string;

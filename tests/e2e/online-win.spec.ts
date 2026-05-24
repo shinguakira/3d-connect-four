@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { gotoOnline, makeMoveAsApi, pressStartGame, resetServer } from "./helpers";
+import { gotoOnline, makeMoveAsApi, pressReadyOnBoth, resetServer } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(120_000);
@@ -25,7 +25,7 @@ test.describe("Online: server-side win is reflected on both clients", () => {
       // Both should see 2/2 in the waiting room before we proceed.
       await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 30_000 });
 
-      await pressStartGame(pageA);
+      await pressReadyOnBoth(pageA, pageB);
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
       await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
 
@@ -50,11 +50,12 @@ test.describe("Online: server-side win is reflected on both clients", () => {
         expect(res.ok, `move ${m.pid} (${m.x},${m.z}) → ${res.status}`).toBe(true);
       }
 
-      // Victory modal: "🎮 新しいゲーム" button appears for both clients.
-      await expect(pageA.getByRole("button", { name: /新しいゲーム/ })).toBeVisible({
+      // Victory modal: the online rematch button "もう一度プレイ (準備完了)"
+      // appears for both clients. (Restarting is also two-approval gated.)
+      await expect(pageA.getByRole("button", { name: /もう一度プレイ/ })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(pageB.getByRole("button", { name: /新しいゲーム/ })).toBeVisible({
+      await expect(pageB.getByRole("button", { name: /もう一度プレイ/ })).toBeVisible({
         timeout: 15_000,
       });
     } finally {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Copy, Gamepad2, Users, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, Check, Copy, Gamepad2, Hourglass, Users, Wifi, WifiOff } from "lucide-react";
 import type { GameRoom } from "@/types/online";
 
 interface OnlineWaitingProps {
@@ -47,6 +47,9 @@ export function OnlineWaiting({
   }
 
   const canStart = room.players.length === 2;
+  const readyIds = room.readyPlayerIds ?? [];
+  const myReady = !!playerId && readyIds.includes(playerId);
+  const opponentReady = room.players.some((p) => p.id !== playerId && readyIds.includes(p.id));
 
   return (
     <div className="w-full h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -105,6 +108,28 @@ export function OnlineWaiting({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {canStart && (
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                        readyIds.includes(player.id)
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                      title={readyIds.includes(player.id) ? "準備完了" : "未準備"}
+                    >
+                      {readyIds.includes(player.id) ? (
+                        <>
+                          <Check className="w-3 h-3" />
+                          準備 OK
+                        </>
+                      ) : (
+                        <>
+                          <Hourglass className="w-3 h-3" />
+                          未準備
+                        </>
+                      )}
+                    </span>
+                  )}
                   <div
                     className={`w-2 h-2 rounded-full ${player.connected ? "bg-green-500" : "bg-red-500"}`}
                   />
@@ -152,28 +177,43 @@ export function OnlineWaiting({
             </div>
           )}
 
-          {/* アクションボタン */}
+          {/* アクションボタン — 両者の同意が揃ってからゲーム開始 */}
           <div className="space-y-3">
-            {canStart ? (
+            {!canStart ? (
+              <Button disabled size="lg" className="w-full">
+                {`プレイヤーを待機中${dots}`}
+              </Button>
+            ) : myReady ? (
+              <Button
+                disabled
+                size="lg"
+                className="w-full bg-gradient-to-r from-green-500 to-blue-600 opacity-90"
+              >
+                <Hourglass className="w-4 h-4 mr-2 animate-pulse" />
+                {opponentReady
+                  ? "開始しています…"
+                  : `相手の準備を待っています${dots}`}
+              </Button>
+            ) : (
               <Button
                 onClick={onStartGame}
                 size="lg"
                 className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
               >
                 <Gamepad2 className="w-4 h-4 mr-2" />
-                ゲーム開始
-              </Button>
-            ) : (
-              <Button disabled size="lg" className="w-full">
-                {room.players.length < 2
-                  ? `プレイヤーを待機中${dots}`
-                  : "どちらのプレイヤーでもゲームを開始できます"}
+                準備完了
               </Button>
             )}
 
             <Button variant="outline" onClick={onLeaveRoom} className="w-full bg-transparent">
               ルームを退出
             </Button>
+
+            {canStart && (
+              <p className="text-xs text-center text-gray-500">
+                両プレイヤーが「準備完了」を押すとゲームが始まります。
+              </p>
+            )}
           </div>
 
           {/* 接続状態の説明 */}

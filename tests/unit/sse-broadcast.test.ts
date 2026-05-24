@@ -43,6 +43,7 @@ function emptyRoom(id: string): GameRoom {
     winner: null,
     gameOver: false,
     gameStarted: false,
+    readyPlayerIds: [],
     createdAt: new Date(0),
     lastActivity: new Date(0),
     settings: {

@@ -40,6 +40,19 @@ async function startGame(request: APIRequestContext, roomId: string, playerId: s
   return request.post(`/api/game/${roomId}/start`, { data: { playerId } });
 }
 
+// Bring a 2-player room from "both joined" to "actually playing" by marking
+// both players ready in sequence. Use this anywhere a test previously
+// assumed startGame(host) was enough.
+async function readyBothAndStart(
+  request: APIRequestContext,
+  roomId: string,
+  hostId: string,
+  guestId: string,
+) {
+  await startGame(request, roomId, hostId);
+  return startGame(request, roomId, guestId);
+}
+
 async function move(
   request: APIRequestContext,
   roomId: string,
@@ -132,12 +145,12 @@ test.describe("API: quick-match flow", () => {
   });
 });
 
-test.describe("API: start gating", () => {
+test.describe("API: ready / start gating (both players must approve)", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer(request);
   });
 
-  test("cannot start with only one player", async ({ request }) => {
+  test("cannot ready up with only one player", async ({ request }) => {
     const host = await createRoom(request, "Host");
     const res = await startGame(request, host.roomId, host.playerId);
     expect(res.status()).toBe(400);
@@ -145,21 +158,135 @@ test.describe("API: start gating", () => {
     expect(body.error).toMatch(/Need exactly 2 players/);
   });
 
-  test("start by an unknown player returns 404", async ({ request }) => {
+  test("ready by an unknown player returns 404", async ({ request }) => {
     const host = await createRoom(request, "Host");
     await joinRoom(request, host.roomId, "Guest");
     const res = await startGame(request, host.roomId, "no-such-player");
     expect(res.status()).toBe(404);
   });
 
-  test("start succeeds with 2 players and flips gameStarted", async ({ request }) => {
+  test("a single player's ready does NOT start the game", async ({ request }) => {
     const host = await createRoom(request, "Host");
     await joinRoom(request, host.roomId, "Guest");
+
     const res = await startGame(request, host.roomId, host.playerId);
     expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.started).toBe(false);
+    expect(body.restarted).toBe(false);
+    expect(body.room.readyPlayerIds).toContain(host.playerId);
+    expect(body.room.gameStarted).toBe(false);
+
     const debug = await request.get("/api/game/debug");
-    const body = await debug.json();
-    expect(body.rooms[0].gameStarted).toBe(true);
+    const debugBody = await debug.json();
+    expect(debugBody.rooms[0].gameStarted).toBe(false);
+  });
+
+  test("ready is idempotent: the same player twice still doesn't start", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    await joinRoom(request, host.roomId, "Guest");
+    await startGame(request, host.roomId, host.playerId);
+    const dup = await startGame(request, host.roomId, host.playerId);
+    const body = await dup.json();
+    expect(body.started).toBe(false);
+    expect(body.room.gameStarted).toBe(false);
+    expect(body.room.readyPlayerIds).toEqual([host.playerId]);
+  });
+
+  test("the second player's ready flips gameStarted and clears the ready set", async ({
+    request,
+  }) => {
+    const host = await createRoom(request, "Host");
+    const guest = await joinRoom(request, host.roomId, "Guest");
+
+    await startGame(request, host.roomId, host.playerId);
+    const second = await startGame(request, host.roomId, guest.playerId);
+    expect(second.ok()).toBeTruthy();
+    const body = await second.json();
+    expect(body.started).toBe(true);
+    expect(body.restarted).toBe(false);
+    expect(body.room.gameStarted).toBe(true);
+    expect(body.room.readyPlayerIds).toEqual([]);
+  });
+
+  test("moves are still blocked while only one side is ready", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    await joinRoom(request, host.roomId, "Guest");
+    await startGame(request, host.roomId, host.playerId);
+
+    const res = await move(request, host.roomId, host.playerId, 0, 0);
+    expect(res.status()).toBe(400);
+  });
+});
+
+test.describe("API: rematch gating (after a finished game)", () => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request);
+  });
+
+  async function playToWin(request: APIRequestContext) {
+    const host = await createRoom(request, "Host");
+    const guest = await joinRoom(request, host.roomId, "Guest");
+    await startGame(request, host.roomId, host.playerId);
+    await startGame(request, host.roomId, guest.playerId);
+    const plan: Array<[string, number, number]> = [
+      [host.playerId, 0, 0],
+      [guest.playerId, 0, 1],
+      [host.playerId, 1, 0],
+      [guest.playerId, 1, 1],
+      [host.playerId, 2, 0],
+      [guest.playerId, 2, 1],
+      [host.playerId, 3, 0], // host wins along x
+    ];
+    for (const [pid, x, z] of plan) {
+      await move(request, host.roomId, pid, x, z);
+    }
+    return { host, guest };
+  }
+
+  test("one-sided rematch ready does NOT reset the board", async ({ request }) => {
+    const { host } = await playToWin(request);
+    const res = await startGame(request, host.roomId, host.playerId);
+    const body = await res.json();
+    expect(body.restarted).toBe(false);
+    expect(body.room.gameOver).toBe(true);
+    expect(body.room.gameState[0][0][0]).toBe(1); // pieces still there
+  });
+
+  test("both players ready triggers rematch: board cleared, currentPlayer=1, gameStarted stays true", async ({
+    request,
+  }) => {
+    const { host, guest } = await playToWin(request);
+    await startGame(request, host.roomId, host.playerId);
+    const res = await startGame(request, host.roomId, guest.playerId);
+    const body = await res.json();
+    expect(body.restarted).toBe(true);
+    expect(body.started).toBe(false);
+    expect(body.room.gameOver).toBe(false);
+    expect(body.room.winner).toBeNull();
+    expect(body.room.currentPlayer).toBe(1);
+    expect(body.room.gameStarted).toBe(true);
+    expect(body.room.readyPlayerIds).toEqual([]);
+    // Fresh board.
+    for (let x = 0; x < 4; x++) {
+      for (let y = 0; y < 4; y++) {
+        for (let z = 0; z < 4; z++) {
+          expect(body.room.gameState[x][y][z]).toBeNull();
+        }
+      }
+    }
+  });
+
+  test("after rematch, moves are processed normally", async ({ request }) => {
+    const { host, guest } = await playToWin(request);
+    await startGame(request, host.roomId, host.playerId);
+    await startGame(request, host.roomId, guest.playerId);
+
+    const m = await move(request, host.roomId, host.playerId, 2, 2);
+    expect(m.ok()).toBeTruthy();
+    const after = await m.json();
+    expect(after.room.gameState[2][0][2]).toBe(1);
+    expect(after.room.currentPlayer).toBe(2);
   });
 });
 
@@ -181,7 +308,7 @@ test.describe("API: move processing", () => {
   test("only the player whose turn it is can move", async ({ request }) => {
     const host = await createRoom(request, "Host");
     const guest = await joinRoom(request, host.roomId, "Guest");
-    await startGame(request, host.roomId, host.playerId);
+    await readyBothAndStart(request, host.roomId, host.playerId, guest.playerId);
 
     // Guest cannot move first.
     const res1 = await move(request, host.roomId, guest.playerId, 0, 0);
@@ -199,7 +326,7 @@ test.describe("API: move processing", () => {
   test("a player cannot drop into a full column", async ({ request }) => {
     const host = await createRoom(request, "Host");
     const guest = await joinRoom(request, host.roomId, "Guest");
-    await startGame(request, host.roomId, host.playerId);
+    await readyBothAndStart(request, host.roomId, host.playerId, guest.playerId);
 
     // Fill (0, 0) by alternating.
     for (let i = 0; i < 4; i++) {
@@ -216,7 +343,7 @@ test.describe("API: move processing", () => {
   test("server reports the winner and blocks further moves", async ({ request }) => {
     const host = await createRoom(request, "Host");
     const guest = await joinRoom(request, host.roomId, "Guest");
-    await startGame(request, host.roomId, host.playerId);
+    await readyBothAndStart(request, host.roomId, host.playerId, guest.playerId);
 
     // Host wins along x at y=0, z=0.
     const plan: Array<[string, number, number]> = [

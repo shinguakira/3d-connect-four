@@ -36,6 +36,7 @@ export default function Component() {
     joinRoom,
     quickMatch,
     startGame,
+    markReady,
   } = useOnlineGame(onlineRoomId, onlinePlayerId);
 
   const handleStartGame = useCallback((mode: GameMode) => {
@@ -124,19 +125,19 @@ export default function Component() {
     }
   }, [gameStarted, gameState]);
 
+  // Mark the local player as ready. The actual transition into "playing"
+  // is driven by the SSE `gameStarted` flag (see the effect above) so both
+  // clients move in lock-step once the SECOND ready arrives.
   const handleStartOnlineGame = useCallback(async () => {
     if (onlineRoom && onlineRoom.players.length === 2) {
       try {
         const success = await startGame();
-        if (success) {
-          setGameMode("online");
-          setGameState("playing");
-        } else {
-          setOnlineError("ゲーム開始に失敗しました");
+        if (!success) {
+          setOnlineError("準備完了の送信に失敗しました");
         }
       } catch (error) {
-        console.error("Failed to start game:", error);
-        setOnlineError("ゲーム開始に失敗しました");
+        console.error("Failed to mark ready:", error);
+        setOnlineError("準備完了の送信に失敗しました");
       }
     }
   }, [onlineRoom, startGame]);
@@ -194,6 +195,7 @@ export default function Component() {
         onlineRoom={onlineRoom}
         onlinePlayerId={onlinePlayerId}
         makeOnlineMove={makeOnlineMove}
+        markOnlineReady={markReady}
       />
     );
   }

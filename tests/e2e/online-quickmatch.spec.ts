@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { gotoOnline, pressStartGame, resetServer } from "./helpers";
+import { gotoOnline, resetServer } from "./helpers";
 
 test.describe("Online: quick-match", () => {
   test.setTimeout(120_000);
@@ -82,7 +82,7 @@ test.describe("Online: quick-match", () => {
     }
   });
 
-  test("either player can press 'ゲーム開始' and both transition to the canvas", async ({
+  test("game starts only after BOTH players press 準備完了 (two-approval gate)", async ({
     browser,
   }) => {
     const ctxA = await browser.newContext();
@@ -96,8 +96,13 @@ test.describe("Online: quick-match", () => {
       await expect(pageA.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 });
       await expect(pageB.getByText("プレイヤー (2/2)")).toBeVisible({ timeout: 15_000 });
 
-      // Have the non-host (B) press start.
-      await pressStartGame(pageB);
+      // Bob alone marking ready must NOT start the game on Alice's side.
+      await pageB.getByRole("button", { name: /準備完了/ }).click();
+      await expect(pageB.getByText(/相手の準備を待っています/)).toBeVisible({ timeout: 5_000 });
+      await expect(pageA.locator("canvas")).toHaveCount(0);
+
+      // Alice presses her own 準備完了 — now both transition into the game.
+      await pageA.getByRole("button", { name: /準備完了/ }).click();
 
       await expect(pageA.locator("canvas").first()).toBeVisible({ timeout: 30_000 });
       await expect(pageB.locator("canvas").first()).toBeVisible({ timeout: 30_000 });

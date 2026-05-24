@@ -228,6 +228,112 @@ describe("GameManager", () => {
     });
   });
 
+  describe("markReady (two-approval start + rematch gate)", () => {
+    function room2p(): { roomId: string; host: Player; guest: Player } {
+      const host = makePlayer({ isHost: true, id: "h" });
+      const guest = makePlayer({ id: "g" });
+      const r = mgr.createRoom(host);
+      mgr.joinRoom(r.id, guest);
+      return { roomId: r.id, host, guest };
+    }
+
+    it("initializes readyPlayerIds to an empty array", () => {
+      const r = mgr.createRoom(makePlayer({ isHost: true }));
+      expect(r.readyPlayerIds).toEqual([]);
+    });
+
+    it("returns null if the room has fewer than 2 players", () => {
+      const r = mgr.createRoom(makePlayer({ isHost: true, id: "h" }));
+      expect(mgr.markReady(r.id, "h")).toBeNull();
+    });
+
+    it("returns null for an unknown player", () => {
+      const { roomId } = room2p();
+      expect(mgr.markReady(roomId, "ghost")).toBeNull();
+    });
+
+    it("a single player's ready does NOT start the game", () => {
+      const { roomId, host } = room2p();
+      const out = mgr.markReady(roomId, host.id);
+      expect(out).not.toBeNull();
+      expect(out!.started).toBe(false);
+      expect(out!.restarted).toBe(false);
+      expect(out!.room.gameStarted).toBe(false);
+      expect(out!.room.readyPlayerIds).toEqual([host.id]);
+    });
+
+    it("the second player's ready flips gameStarted and clears readyPlayerIds", () => {
+      const { roomId, host, guest } = room2p();
+      mgr.markReady(roomId, host.id);
+      const out = mgr.markReady(roomId, guest.id);
+      expect(out!.started).toBe(true);
+      expect(out!.restarted).toBe(false);
+      expect(out!.room.gameStarted).toBe(true);
+      expect(out!.room.readyPlayerIds).toEqual([]);
+    });
+
+    it("is idempotent: same player marking ready twice doesn't double-fire", () => {
+      const { roomId, host } = room2p();
+      mgr.markReady(roomId, host.id);
+      const dup = mgr.markReady(roomId, host.id);
+      expect(dup!.started).toBe(false);
+      expect(dup!.room.readyPlayerIds).toEqual([host.id]);
+      expect(dup!.room.gameStarted).toBe(false);
+    });
+
+    it("rematch: both ready after gameOver resets the board and resumes play", () => {
+      const { roomId, host, guest } = room2p();
+      const r = mgr.getRoom(roomId)!;
+      // Play through to a win.
+      mgr.markReady(roomId, host.id);
+      mgr.markReady(roomId, guest.id);
+      for (const [pid, x, z] of [
+        [host.id, 0, 0],
+        [guest.id, 0, 1],
+        [host.id, 1, 0],
+        [guest.id, 1, 1],
+        [host.id, 2, 0],
+        [guest.id, 2, 1],
+        [host.id, 3, 0],
+      ] as const) {
+        mgr.makeMove(roomId, pid, { playerId: pid, x, z, timestamp: new Date() });
+      }
+      expect(r.gameOver).toBe(true);
+      expect(r.winner).toBe(1);
+
+      // Host alone requesting rematch is not enough.
+      const partial = mgr.markReady(roomId, host.id);
+      expect(partial!.restarted).toBe(false);
+      expect(r.gameOver).toBe(true);
+      expect(r.gameState[0][0][0]).toBe(1); // board still has pieces
+
+      // Guest confirms — rematch fires.
+      const out = mgr.markReady(roomId, guest.id);
+      expect(out!.restarted).toBe(true);
+      expect(out!.started).toBe(false);
+      expect(out!.room.gameOver).toBe(false);
+      expect(out!.room.winner).toBeNull();
+      expect(out!.room.currentPlayer).toBe(1);
+      expect(out!.room.gameState[0][0][0]).toBeNull();
+      expect(out!.room.gameStarted).toBe(true);
+      expect(out!.room.readyPlayerIds).toEqual([]);
+    });
+
+    it("unmarkReady removes the player from the ready set", () => {
+      const { roomId, host } = room2p();
+      mgr.markReady(roomId, host.id);
+      const after = mgr.unmarkReady(roomId, host.id)!;
+      expect(after.readyPlayerIds).toEqual([]);
+    });
+
+    it("unmarkReady is a no-op for a player who isn't ready", () => {
+      const { roomId, host, guest } = room2p();
+      mgr.markReady(roomId, host.id);
+      const after = mgr.unmarkReady(roomId, guest.id)!;
+      expect(after.readyPlayerIds).toEqual([host.id]);
+    });
+  });
+
   describe("cleanupInactiveRooms", () => {
     it("removes rooms with lastActivity older than 30 minutes", () => {
       const stale = mgr.createRoom(makePlayer({ isHost: true }));

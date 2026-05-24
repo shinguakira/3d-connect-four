@@ -20,9 +20,9 @@ test.describe("Online: room creation flow", () => {
     await expect(page.getByText(/プレイヤーを待機中/).first()).toBeVisible();
     await expect(page.getByText(/友達にルームID/)).toBeVisible();
 
-    // Start button is disabled until the second player arrives. The button
+    // Ready button is suppressed until the second player arrives. The button
     // is rendered as a single disabled control labelled "プレイヤーを待機中".
-    await expect(page.getByRole("button", { name: /ゲーム開始/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /準備完了/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /プレイヤーを待機中/ })).toBeDisabled();
   });
 
