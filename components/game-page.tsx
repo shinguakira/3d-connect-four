@@ -27,6 +27,7 @@ import {
   type ReachLine,
 } from "@/lib/game-logic";
 import { TurnBanner } from "@/components/turn-banner";
+import { VictoryCrackers } from "@/components/victory-crackers";
 
 type Player = 1 | 2 | null;
 type GameBoard = Player[][][];
@@ -467,6 +468,19 @@ export function GamePage({
     return checkWinnerForBoard(newBoard);
   }, []);
 
+  // Dev-only victory demo: ?victory-demo=1 or 2 forces a winner state so the
+  // confetti + modal can be captured deterministically without scripting a
+  // full game. Inert in production builds.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    if (typeof window === "undefined") return;
+    const demo = new URLSearchParams(window.location.search).get("victory-demo");
+    if (demo === "1" || demo === "2") {
+      setWinner(Number(demo) as 1 | 2);
+      setGameOver(true);
+    }
+  }, []);
+
   // ターン切替バナーのトリガー。currentPlayer が変わるたび、また gameOver
   // 状態がリセットされた直後 (= 新規ゲーム) にカウンタを bump して
   // TurnBanner を再マウントする。
@@ -670,6 +684,11 @@ export function GamePage({
                 : currentPlayer === 2
           }
         />
+
+        {/* 勝利時のクラッカー (winner が確定してから modal の裏で炸裂) */}
+        {gameOver && victoryInfo && winner && (
+          <VictoryCrackers triggerKey={winner} accentColor={victoryInfo.color} />
+        )}
 
         {/* 勝利モーダル */}
         {gameOver && victoryInfo && (
