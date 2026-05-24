@@ -119,6 +119,51 @@ test.describe("API: player name validation", () => {
   });
 });
 
+test.describe("API: GET /api/game/lookup/[roomId] (used by reconnect)", () => {
+  test.beforeEach(async ({ request }) => {
+    await resetServer(request);
+  });
+
+  test("returns the room snapshot when it exists", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    const res = await request.get(`/api/game/lookup/${host.roomId}`);
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.room.id).toBe(host.roomId);
+    expect(body.room.players).toHaveLength(1);
+    expect(body.room.players[0].id).toBe(host.playerId);
+  });
+
+  test("includes readyPlayerIds and gameStarted in the snapshot", async ({ request }) => {
+    const host = await createRoom(request, "Host");
+    await joinRoom(request, host.roomId, "Guest");
+    await startGame(request, host.roomId, host.playerId);
+    const res = await request.get(`/api/game/lookup/${host.roomId}`);
+    const body = await res.json();
+    expect(body.room.readyPlayerIds).toContain(host.playerId);
+    expect(body.room.gameStarted).toBe(false);
+  });
+
+  test("returns 404 for unknown room", async ({ request }) => {
+    const res = await request.get("/api/game/lookup/NOPE99");
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+  });
+
+  // Guard against INCIDENT-NEXT-ROUTE-CONFLICT.md: an earlier reconnect
+  // endpoint at app/api/game/[roomId]/route.ts shadowed sibling literal
+  // routes (create / join / quick-match) under Next 15.5.x.
+  test("does NOT shadow POST /api/game/create (route conflict guard)", async ({ request }) => {
+    const res = await request.post("/api/game/create", { data: { playerName: "Sanity" } });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.room.players[0].name).toBe("Sanity");
+  });
+});
+
 test.describe("API: room creation", () => {
   test.beforeEach(async ({ request }) => {
     await resetServer(request);

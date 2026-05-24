@@ -45,28 +45,12 @@ export async function GET(
         controller.enqueue(encoder.encode(errorData));
       }
 
-      const interval = setInterval(() => {
-        const currentRoom = gameManager.getRoom(roomId);
-        if (!currentRoom) {
-          controller.close();
-          clearInterval(interval);
-          return;
-        }
-
-        if (playerId) {
-          gameManager.updatePlayerConnection(roomId, playerId, true);
-        }
-
-        const fingerprint = fingerprintRoom(currentRoom);
-        if (lastKnownStates.get(roomId) !== fingerprint) {
-          lastKnownStates.set(roomId, fingerprint);
-          broadcastToRoom(roomId, { type: "game-state", room: currentRoom });
-          console.log(`Broadcasting meaningful state update for room ${roomId}`);
-        }
-      }, 2000);
-
-      request.signal.addEventListener("abort", () => {
+      let closed = false;
+      const cleanup = () => {
+        if (closed) return;
+        closed = true;
         clearInterval(interval);
+        clearInterval(heartbeat);
         if (playerId) {
           gameManager.updatePlayerConnection(roomId, playerId, false);
         }
@@ -76,7 +60,53 @@ export async function GET(
         } catch {
           // already closed
         }
-      });
+      };
+
+      const interval = setInterval(() => {
+        if (closed) return;
+        // If Next has flagged the request as aborted but the abort listener
+        // hasn't fired yet (15.5.x sometimes lags here), short-circuit
+        // through cleanup so we don't ride a dead controller indefinitely.
+        if (request.signal.aborted) {
+          cleanup();
+          return;
+        }
+        const currentRoom = gameManager.getRoom(roomId);
+        if (!currentRoom) {
+          cleanup();
+          return;
+        }
+
+        // Note: NO `updatePlayerConnection(true)` here. The connection's
+        // initial GET already marked the player connected; cleanup() flips
+        // them to false on disconnect. If we re-marked true every 2s, a
+        // dead controller whose abort hasn't fired would keep the player
+        // looking online forever (observed regression under Next 15.5.x).
+
+        const fingerprint = fingerprintRoom(currentRoom);
+        if (lastKnownStates.get(roomId) !== fingerprint) {
+          lastKnownStates.set(roomId, fingerprint);
+          broadcastToRoom(roomId, { type: "game-state", room: currentRoom });
+          console.log(`Broadcasting meaningful state update for room ${roomId}`);
+        }
+      }, 2000);
+
+      // SSE heartbeat: a comment line is a no-op for the client (EventSource
+      // ignores lines starting with ':') but keeps proxies from idle-closing
+      // the connection AND surfaces a dead client via the throw on the next
+      // enqueue. Without this, a silently-dead tab can show as "connected"
+      // until the 30-min room cleanup.
+      const heartbeat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(": ping\n\n"));
+        } catch {
+          console.log(`SSE heartbeat failed for room ${roomId}, treating as disconnect`);
+          cleanup();
+        }
+      }, 10_000);
+
+      request.signal.addEventListener("abort", cleanup);
     },
   });
 

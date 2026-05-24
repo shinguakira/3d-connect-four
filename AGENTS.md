@@ -41,10 +41,11 @@ app/
     ├── join/[roomId]/route.ts   # 既存ルームへ参加
     ├── quick-match/route.ts     # マッチング (空きルームに合流 or 新規作成)
     ├── debug/route.ts           # デバッグ用
+    ├── lookup/[roomId]/route.ts # ルーム情報の軽量 GET (reconnect 検証)
     └── [roomId]/
         ├── start/route.ts       # ゲーム開始シグナル (3 回ブロードキャスト)
         ├── move/route.ts        # 駒を打つ
-        └── events/route.ts      # SSE で部屋の状態を配信
+        └── events/route.ts      # SSE で部屋の状態を配信 (10s heartbeat)
 components/
 ├── title-page.tsx           # タイトル画面 (モード選択 + 背景プレビュー)
 ├── online-menu.tsx          # オンライン: クイックマッチ/作成/参加 タブ
@@ -126,6 +127,23 @@ menu ──選択──▶ playing                (two-player / vs-ai)
     `game-page` 側はそれを契機にローカル UI 状態を新ラウンド向けにリセット
 - 30 分非アクティブなルームは `cleanupInactiveRooms` で削除
   (`start` ルートで遅延 cleanup を呼ぶ)
+- **切断検知**: `events/route.ts` は 10 秒ごとに `: ping` heartbeat を送信。
+  `controller.enqueue` が throw したら相手切断とみなして `closed=true` 経由で
+  intervals + `player.connected = false` をクリーンアップ。`abort` ハンドラ
+  と同じ `cleanup()` 経路を通る。game-page はヘッダーに `相手切断` バッジを表示。
+- **タブリロード再接続**: `app/page.tsx` は `sessionStorage` (タブ単位、
+  reload 耐性、別タブ非共有) に `{roomId, playerId}` を保存。マウント時に
+  `GET /api/game/lookup/[roomId]` で生存確認してから `online-waiting` に
+  state を復元。ルームが消えていれば silent に sessionStorage を破棄。
+  `useRef` でストリクトモードの再マウントを越えて 1 回だけ走らせる。
+
+> **重要 — ルート配置の落とし穴**: `app/api/game/[roomId]/` 直下に
+> `route.ts` を置いてはいけない (`events/`, `move/`, `start/` だけが
+> サブディレクトリとして許容)。`app/api/game/create/` 等の literal
+> 兄弟と衝突して POST /api/game/create がそちらに dispatch される事故が
+> 起きる (Next 15.5.x で実際に発生。`INCIDENT-NEXT-ROUTE-CONFLICT.md`
+> 参照)。新しい dynamic-room エンドポイントは
+> `app/api/game/lookup/[roomId]/` のように専用 namespace を切ること。
 
 ## 開発コマンド
 
