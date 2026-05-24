@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <radialGradient id="win" cx="0.35" cy="0.35" r="0.7">
+      <stop offset="0%" stop-color="#fca5a5"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <!-- 4x4 grid of faint white slots -->
+  <g fill="#ffffff" fill-opacity="0.22">
+    <circle cx="14" cy="14" r="4"/>
+    <circle cx="28" cy="14" r="4"/>
+    <circle cx="42" cy="14" r="4"/>
+    <circle cx="56" cy="14" r="4" fill-opacity="0"/>
+    <circle cx="14" cy="28" r="4"/>
+    <circle cx="28" cy="28" r="4" fill-opacity="0"/>
+    <circle cx="42" cy="28" r="4"/>
+    <circle cx="56" cy="28" r="4"/>
+    <circle cx="14" cy="42" r="4"/>
+    <circle cx="28" cy="42" r="4"/>
+    <circle cx="42" cy="42" r="4" fill-opacity="0"/>
+    <circle cx="56" cy="42" r="4"/>
+    <circle cx="14" cy="56" r="4" fill-opacity="0"/>
+    <circle cx="28" cy="56" r="4"/>
+    <circle cx="42" cy="56" r="4"/>
+    <circle cx="56" cy="56" r="4"/>
+  </g>
+  <!-- winning diagonal: 4 in a row, red gradient pieces -->
+  <g>
+    <circle cx="14" cy="14" r="5.5" fill="url(#win)"/>
+    <circle cx="28" cy="28" r="5.5" fill="url(#win)"/>
+    <circle cx="42" cy="42" r="5.5" fill="url(#win)"/>
+    <circle cx="56" cy="56" r="5.5" fill="url(#win)"/>
+  </g>
+  <!-- subtle connecting line through the win -->
+  <line x1="14" y1="14" x2="56" y2="56" stroke="#fff" stroke-opacity="0.5" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

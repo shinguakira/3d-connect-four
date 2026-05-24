@@ -1,9 +1,20 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  ArrowDown,
+  Bot,
+  Box,
+  Globe,
+  MousePointer,
+  Rocket,
+  Ruler,
+  Target,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type * as THREE from "three";
 import { backgrounds } from "@/components/background/background-preview-selector";
 
 type GameMode = "two-player" | "vs-ai" | "online";
@@ -12,28 +23,37 @@ interface TitlePageProps {
   onStartGame: (mode: GameMode) => void;
 }
 
-const GAME_MODES = [
+interface GameModeOption {
+  id: GameMode;
+  name: string;
+  description: string;
+  Icon: LucideIcon;
+  color: string;
+  available: boolean;
+}
+
+const GAME_MODES: GameModeOption[] = [
   {
-    id: "two-player" as GameMode,
+    id: "two-player",
     name: "2プレイヤー",
     description: "友達と対戦",
-    icon: "👥",
+    Icon: Users,
     color: "from-blue-500 to-purple-600",
     available: true,
   },
   {
-    id: "vs-ai" as GameMode,
+    id: "vs-ai",
     name: "vs AI",
     description: "コンピューター対戦",
-    icon: "🤖",
+    Icon: Bot,
     color: "from-green-500 to-teal-600",
     available: true,
   },
   {
-    id: "online" as GameMode,
+    id: "online",
     name: "オンライン",
     description: "オンライン対戦",
-    icon: "🌐",
+    Icon: Globe,
     color: "from-orange-500 to-red-600",
     available: true,
   },
@@ -62,7 +82,6 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
 
   return (
     <>
-      <title>3D Connect Four - 3D4目並べゲーム</title>
       <div className="relative min-h-screen w-full overflow-hidden bg-black">
         {/* バックグラウンドビジュアル */}
         <div className="absolute inset-0 z-0">
@@ -88,9 +107,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
           <div className="container mx-auto px-4 py-8 md:py-12">
             <div
               className={`max-w-4xl mx-auto transition-all duration-1000 ${
-                isLoaded
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-8"
+                isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}
             >
               {/* タイトルセクション */}
@@ -143,9 +160,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                       <div
                         key={mode.id}
                         className={`transition-all duration-300 ${
-                          isLoaded
-                            ? "opacity-100 translate-x-0"
-                            : "opacity-0 translate-x-8"
+                          isLoaded ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"
                         }`}
                         style={{ transitionDelay: `${index * 150}ms` }}
                       >
@@ -173,8 +188,8 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                           <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                           <div className="relative flex items-center space-x-3 md:space-x-4">
-                            <div className="text-2xl md:text-3xl transform transition-transform duration-300 group-hover:scale-110">
-                              {mode.icon}
+                            <div className="text-white transform transition-transform duration-300 group-hover:scale-110">
+                              <mode.Icon className="w-7 h-7 md:w-8 md:h-8" strokeWidth={2} />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="text-lg md:text-xl font-bold text-white mb-1">
@@ -208,24 +223,22 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                 <CardContent className="p-6 md:p-8">
                   <div className="text-center mb-6">
                     <h3 className="text-lg md:text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-                      <span className="text-xl md:text-2xl">🎯</span>
+                      <Target className="w-5 h-5 md:w-6 md:h-6" />
                       遊び方
                     </h3>
                   </div>
 
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm md:text-base">
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300">
-                      <div className="text-xl md:text-2xl mb-2">🎲</div>
-                      <div className="text-white font-medium mb-1">
-                        立体空間
-                      </div>
+                      <Box className="w-6 h-6 md:w-7 md:h-7 mx-auto mb-2 text-white" />
+                      <div className="text-white font-medium mb-1">立体空間</div>
                       <div className="text-white/70 text-xs md:text-sm">
                         4×4×4の立方体で4つ連続を目指そう
                       </div>
                     </div>
 
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300">
-                      <div className="text-xl md:text-2xl mb-2">📐</div>
+                      <Ruler className="w-6 h-6 md:w-7 md:h-7 mx-auto mb-2 text-white" />
                       <div className="text-white font-medium mb-1">全方向</div>
                       <div className="text-white/70 text-xs md:text-sm">
                         縦・横・奥行き・対角線すべてが有効
@@ -233,7 +246,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
                     </div>
 
                     <div className="bg-white/5 rounded-lg p-4 text-center border border-white/10 hover:bg-white/10 transition-colors duration-300 sm:col-span-2 lg:col-span-1">
-                      <div className="text-xl md:text-2xl mb-2">🖱️</div>
+                      <MousePointer className="w-6 h-6 md:w-7 md:h-7 mx-auto mb-2 text-white" />
                       <div className="text-white font-medium mb-1">操作</div>
                       <div className="text-white/70 text-xs md:text-sm">
                         マウスで視点を回転・ズーム可能
@@ -243,8 +256,9 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
 
                   {/* フッター */}
                   <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-white/10 text-center">
-                    <p className="text-white/50 text-sm md:text-base">
-                      🚀 新次元の戦略ゲームを体験しよう
+                    <p className="text-white/50 text-sm md:text-base inline-flex items-center justify-center gap-2">
+                      <Rocket className="w-4 h-4 md:w-5 md:h-5" />
+                      新次元の戦略ゲームを体験しよう
                     </p>
                   </div>
                 </CardContent>
@@ -254,7 +268,7 @@ export function TitlePage({ onStartGame }: TitlePageProps) {
               <div className="text-center mt-8 md:hidden">
                 <div className="inline-flex items-center text-white/50 text-sm">
                   <span>スクロールして全てのコンテンツを表示</span>
-                  <div className="ml-2 animate-bounce">↓</div>
+                  <ArrowDown className="ml-2 w-4 h-4 animate-bounce" />
                 </div>
               </div>
             </div>

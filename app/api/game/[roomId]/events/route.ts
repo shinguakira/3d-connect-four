@@ -1,52 +1,84 @@
-import type { NextRequest } from "next/server"
-import { gameManager } from "@/lib/game-manager"
+import type { NextRequest } from "next/server";
+import { gameManager } from "@/lib/game-manager";
+import {
+  broadcastToRoom,
+  fingerprintRoom,
+  lastKnownStates,
+  registerConnection,
+  unregisterConnection,
+} from "@/lib/sse-broadcast";
 
-export async function GET(request: NextRequest, { params }: { params: { roomId: string } }) {
-  const roomId = params.roomId
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> },
+) {
+  const { roomId } = await params;
+  const playerId = request.nextUrl.searchParams.get("playerId");
 
-  // Server-Sent Events のストリームを作成
+  if (!playerId) {
+    return new Response("Player ID required", { status: 400 });
+  }
+
+  gameManager.updatePlayerConnection(roomId, playerId, true);
+
   const stream = new ReadableStream({
     start(controller) {
-      const encoder = new TextEncoder()
+      const encoder = new TextEncoder();
 
-      // 初期ゲーム状態を送信
-      const room = gameManager.getRoom(roomId)
+      registerConnection(roomId, controller);
+
+      const room = gameManager.getRoom(roomId);
+      console.log(`SSE connection established for room ${roomId}, room exists:`, !!room);
+
       if (room) {
-        const data = `data: ${JSON.stringify({
-          type: "game-state",
-          room: {
-            id: room.id,
-            players: room.players,
-            gameState: room.gameState,
-            currentPlayer: room.currentPlayer,
-            winner: room.winner,
-            gameOver: room.gameOver,
-            settings: room.settings,
-          },
-        })}\n\n`
-        controller.enqueue(encoder.encode(data))
+        lastKnownStates.set(roomId, fingerprintRoom(room));
+        const data = `data: ${JSON.stringify({ type: "game-state", room })}\n\n`;
+        controller.enqueue(encoder.encode(data));
+        console.log(`Initial game state sent for room ${roomId}`);
+      } else {
+        console.log(`Room ${roomId} not found when establishing SSE connection`);
+        const errorData = `data: ${JSON.stringify({
+          type: "error",
+          error: "Room not found",
+          roomId,
+        })}\n\n`;
+        controller.enqueue(encoder.encode(errorData));
       }
 
-      // 定期的にゲーム状態をチェック（実際の実装では、イベントベースにする）
       const interval = setInterval(() => {
-        const currentRoom = gameManager.getRoom(roomId)
+        const currentRoom = gameManager.getRoom(roomId);
         if (!currentRoom) {
-          controller.close()
-          clearInterval(interval)
-          return
+          controller.close();
+          clearInterval(interval);
+          return;
         }
 
-        // ここで変更があった場合のみ送信する実装が必要
-        // 実際の実装では、GameManagerにイベントリスナーを追加
-      }, 1000)
+        if (playerId) {
+          gameManager.updatePlayerConnection(roomId, playerId, true);
+        }
 
-      // クリーンアップ
+        const fingerprint = fingerprintRoom(currentRoom);
+        if (lastKnownStates.get(roomId) !== fingerprint) {
+          lastKnownStates.set(roomId, fingerprint);
+          broadcastToRoom(roomId, { type: "game-state", room: currentRoom });
+          console.log(`Broadcasting meaningful state update for room ${roomId}`);
+        }
+      }, 2000);
+
       request.signal.addEventListener("abort", () => {
-        clearInterval(interval)
-        controller.close()
-      })
+        clearInterval(interval);
+        if (playerId) {
+          gameManager.updatePlayerConnection(roomId, playerId, false);
+        }
+        unregisterConnection(roomId, controller);
+        try {
+          controller.close();
+        } catch {
+          // already closed
+        }
+      });
     },
-  })
+  });
 
   return new Response(stream, {
     headers: {
@@ -54,5 +86,5 @@ export async function GET(request: NextRequest, { params }: { params: { roomId: 
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
     },
-  })
+  });
 }

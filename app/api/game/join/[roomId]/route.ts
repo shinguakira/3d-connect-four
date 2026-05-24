@@ -1,25 +1,55 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { gameManager } from "@/lib/game-manager"
+import { type NextRequest, NextResponse } from "next/server";
+import { gameManager } from "@/lib/game-manager";
+import { broadcastToRoom } from "@/lib/sse-broadcast";
+import { validatePlayerName } from "@/lib/online-validation";
 
-export async function POST(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ roomId: string }> },
+) {
   try {
-    const { playerName } = await request.json()
-    const roomId = params.roomId
+    const { playerName } = await request.json();
+    const { roomId } = await params;
+
+    const validation = validatePlayerName(playerName);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
 
     const player = {
       id: crypto.randomUUID(),
-      name: playerName || "プレイヤー2",
+      name: validation.name,
       color: "#3b82f6",
       isHost: false,
       connected: true,
       lastSeen: new Date(),
-    }
+    };
 
-    const room = gameManager.joinRoom(roomId, player)
+    const room = gameManager.joinRoom(roomId, player);
 
     if (!room) {
-      return NextResponse.json({ success: false, error: "ルームが見つからないか満員です" }, { status: 404 })
+      return NextResponse.json(
+        { success: false, error: "ルームが見つからないか満員です" },
+        { status: 404 },
+      );
     }
+
+    // Notify the host (and any other listeners) immediately, instead of
+    // waiting up to 2s for the periodic SSE state poll.
+    broadcastToRoom(roomId, {
+      type: "player-joined",
+      room: {
+        id: room.id,
+        players: room.players,
+        gameState: room.gameState,
+        currentPlayer: room.currentPlayer,
+        gameStarted: room.gameStarted,
+        gameOver: room.gameOver,
+        winner: room.winner,
+        settings: room.settings,
+      },
+      player,
+    });
 
     return NextResponse.json({
       success: true,
@@ -31,8 +61,11 @@ export async function POST(request: NextRequest, { params }: { params: { roomId:
         settings: room.settings,
       },
       playerId: player.id,
-    })
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "ルーム参加に失敗しました" }, { status: 500 })
+    });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "ルーム参加に失敗しました" },
+      { status: 500 },
+    );
   }
 }

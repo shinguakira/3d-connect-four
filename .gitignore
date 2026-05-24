@@ -26,3 +26,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# tests
+/playwright-report
+/test-results
+/coverage
+
+# throwaway preview screenshots (used for design iteration)
+/doc/images/preview

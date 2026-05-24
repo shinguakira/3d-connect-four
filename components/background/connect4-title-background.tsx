@@ -70,12 +70,7 @@ export default function Component() {
     <div className="w-full h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
         <Scene />
-        <OrbitControls
-          enableZoom={false}
-          enablePan={false}
-          autoRotate
-          autoRotateSpeed={0.5}
-        />
+        <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
       </Canvas>
     </div>
   );

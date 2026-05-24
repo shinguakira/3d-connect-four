@@ -1,46 +1,61 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Loader2, Users, Gamepad2, Hash } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Users, Gamepad2, Hash } from "lucide-react";
+import { MAX_NAME_LEN, countCodepoints, validatePlayerName } from "@/lib/online-validation";
 
 interface OnlineMenuProps {
-  onCreateRoom: (playerName: string) => void
-  onJoinRoom: (roomId: string, playerName: string) => void
-  onQuickMatch: (playerName: string) => void
-  onBack: () => void
-  isLoading: boolean
-  error: string | null
+  onCreateRoom: (playerName: string) => void;
+  onJoinRoom: (roomId: string, playerName: string) => void;
+  onQuickMatch: (playerName: string) => void;
+  onBack: () => void;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isLoading, error }: OnlineMenuProps) {
-  const [playerName, setPlayerName] = useState("")
-  const [roomId, setRoomId] = useState("")
-  const [activeTab, setActiveTab] = useState<"create" | "join" | "quick">("quick")
+export function OnlineMenu({
+  onCreateRoom,
+  onJoinRoom,
+  onQuickMatch,
+  onBack,
+  isLoading,
+  error,
+}: OnlineMenuProps) {
+  const [playerName, setPlayerName] = useState("");
+  const [roomId, setRoomId] = useState("");
+  const [activeTab, setActiveTab] = useState<"create" | "join" | "quick">("quick");
+
+  // Live validation so the button + helper text reflect the current input.
+  const nameValidation = validatePlayerName(playerName);
+  const nameLen = countCodepoints(playerName);
+  const nameTooLong = nameLen > MAX_NAME_LEN;
+  const nameError = !nameValidation.ok && playerName.length > 0 ? nameValidation.error : null;
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!playerName.trim()) return
+    e.preventDefault();
+    if (!nameValidation.ok) return;
+    const name = nameValidation.name;
 
     switch (activeTab) {
       case "create":
-        onCreateRoom(playerName.trim())
-        break
+        onCreateRoom(name);
+        break;
       case "join":
         if (roomId.trim()) {
-          onJoinRoom(roomId.trim().toUpperCase(), playerName.trim())
+          onJoinRoom(roomId.trim().toUpperCase(), name);
         }
-        break
+        break;
       case "quick":
-        onQuickMatch(playerName.trim())
-        break
+        onQuickMatch(name);
+        break;
     }
-  }
+  };
 
   return (
     <div className="w-full h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -50,18 +65,37 @@ export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isL
           <p className="text-gray-600">世界中のプレイヤーと対戦しよう</p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* プレイヤー名入力 */}
+          {/* プレイヤー名入力 — クライアント側で長さ警告、サーバ側でも再検証 */}
           <div className="space-y-2">
-            <Label htmlFor="playerName">プレイヤー名</Label>
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="playerName">プレイヤー名</Label>
+              <span
+                className={`text-xs tabular-nums ${
+                  nameTooLong ? "text-red-600 font-semibold" : "text-gray-500"
+                }`}
+                aria-live="polite"
+              >
+                {nameLen}/{MAX_NAME_LEN}
+              </span>
+            </div>
             <Input
               id="playerName"
               type="text"
               placeholder="あなたの名前を入力"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              maxLength={20}
+              // Codepoint truncation in the change handler isn't trivial, so
+              // keep the loose maxLength as a soft cap. Server validates.
+              maxLength={MAX_NAME_LEN * 2}
               disabled={isLoading}
+              aria-invalid={nameError != null}
+              aria-describedby={nameError ? "playerName-error" : undefined}
             />
+            {nameError && (
+              <p id="playerName-error" className="text-xs text-red-600">
+                {nameError}
+              </p>
+            )}
           </div>
 
           {/* タブ選択 */}
@@ -155,7 +189,9 @@ export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isL
               <Button
                 type="submit"
                 size="lg"
-                disabled={isLoading || !playerName.trim() || (activeTab === "join" && !roomId.trim())}
+                disabled={
+                  isLoading || !nameValidation.ok || (activeTab === "join" && !roomId.trim())
+                }
                 className="w-full"
               >
                 {isLoading ? (
@@ -195,5 +231,5 @@ export function OnlineMenu({ onCreateRoom, onJoinRoom, onQuickMatch, onBack, isL
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

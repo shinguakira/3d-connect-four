@@ -1,27 +1,47 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { gameManager } from "@/lib/game-manager"
+import { type NextRequest, NextResponse } from "next/server";
+import { gameManager } from "@/lib/game-manager";
+import { broadcastToRoom } from "@/lib/sse-broadcast";
+import { validatePlayerName } from "@/lib/online-validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { playerName } = await request.json()
+    const { playerName } = await request.json();
+
+    const validation = validatePlayerName(playerName);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
 
     // 待機中のルームを検索
-    const availableRoom = gameManager.findAvailableRoom()
+    const availableRoom = gameManager.findAvailableRoom();
 
     if (availableRoom) {
       // 既存のルームに参加
       const player = {
         id: crypto.randomUUID(),
-        name: playerName || "プレイヤー2",
+        name: validation.name,
         color: "#3b82f6",
         isHost: false,
         connected: true,
         lastSeen: new Date(),
-      }
+      };
 
-      const room = gameManager.joinRoom(availableRoom.id, player)
+      const room = gameManager.joinRoom(availableRoom.id, player);
 
       if (room) {
+        // ルームの他のプレイヤーに通知
+        broadcastToRoom(room.id, {
+          type: "player-joined",
+          room: {
+            id: room.id,
+            players: room.players,
+            gameState: room.gameState,
+            currentPlayer: room.currentPlayer,
+            settings: room.settings,
+          },
+          player,
+        });
+
         return NextResponse.json({
           success: true,
           room: {
@@ -33,21 +53,25 @@ export async function POST(request: NextRequest) {
           },
           playerId: player.id,
           matched: true,
-        })
+        });
       }
     }
 
     // 新しいルームを作成
     const player = {
       id: crypto.randomUUID(),
-      name: playerName || "プレイヤー1",
+      name: validation.name,
       color: "#ef4444",
       isHost: true,
       connected: true,
       lastSeen: new Date(),
-    }
+    };
 
-    const room = gameManager.createRoom(player)
+    const room = gameManager.createRoom(player);
+    console.log(`New room created for quick match: ${room.id}, player: ${player.id}`);
+
+    // Small delay to ensure room is fully persisted before frontend connects
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     return NextResponse.json({
       success: true,
@@ -56,12 +80,19 @@ export async function POST(request: NextRequest) {
         players: room.players,
         gameState: room.gameState,
         currentPlayer: room.currentPlayer,
+        gameStarted: room.gameStarted,
+        gameOver: room.gameOver,
+        winner: room.winner,
         settings: room.settings,
       },
       playerId: player.id,
       matched: false, // まだマッチしていない
-    })
+    });
   } catch (error) {
-    return NextResponse.json({ success: false, error: "クイックマッチに失敗しました" }, { status: 500 })
+    console.error("Quick match error:", error);
+    return NextResponse.json(
+      { success: false, error: "クイックマッチに失敗しました" },
+      { status: 500 },
+    );
   }
 }

@@ -1,20 +1,26 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { gameManager } from "@/lib/game-manager"
+import { type NextRequest, NextResponse } from "next/server";
+import { gameManager } from "@/lib/game-manager";
+import { validatePlayerName } from "@/lib/online-validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { playerName } = await request.json()
+    const { playerName } = await request.json();
+
+    const validation = validatePlayerName(playerName);
+    if (!validation.ok) {
+      return NextResponse.json({ success: false, error: validation.error }, { status: 400 });
+    }
 
     const player = {
       id: crypto.randomUUID(),
-      name: playerName || "プレイヤー1",
+      name: validation.name,
       color: "#ef4444",
       isHost: true,
       connected: true,
       lastSeen: new Date(),
-    }
+    };
 
-    const room = gameManager.createRoom(player)
+    const room = gameManager.createRoom(player);
 
     return NextResponse.json({
       success: true,
@@ -26,8 +32,11 @@ export async function POST(request: NextRequest) {
         settings: room.settings,
       },
       playerId: player.id,
-    })
-  } catch (error) {
-    return NextResponse.json({ success: false, error: "ルーム作成に失敗しました" }, { status: 500 })
+    });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "ルーム作成に失敗しました" },
+      { status: 500 },
+    );
   }
 }
