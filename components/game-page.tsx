@@ -18,6 +18,7 @@ import {
   RotateCw,
   Settings,
   Trophy,
+  WifiOff,
   X,
   Zap,
   ZoomIn,
@@ -460,6 +461,16 @@ export function GamePage({
     return null;
   }, [gameMode, onlinePlayerId, onlineRoom]);
 
+  // True only in online mode when the OTHER player's connection has dropped.
+  // Drives the "相手切断中" header badge — surfaces a silently-dead opponent
+  // (the SSE heartbeat in events/route.ts flips player.connected within
+  // ~10s of a dead controller).
+  const opponentDisconnected = useMemo(() => {
+    if (gameMode !== "online" || !onlineRoom?.players || !onlinePlayerId) return false;
+    const opp = onlineRoom.players.find((p: any) => p.id !== onlinePlayerId);
+    return !!opp && opp.connected === false;
+  }, [gameMode, onlineRoom, onlinePlayerId]);
+
   // リーチライン計算 — 相手のリーチは絶対に表示しない (visibleReachPlayers が決定)。
   const reachLines = useMemo(() => {
     if (!showReachLines || gameOver) return [];
@@ -735,10 +746,17 @@ export function GamePage({
           }
         />
 
-        {/* 勝利時のクラッカー (winner が確定してから modal の裏で炸裂) */}
-        {gameOver && victoryInfo && winner && (
-          <VictoryCrackers triggerKey={winner} accentColor={victoryInfo.color} />
-        )}
+        {/* 勝利時のクラッカー — 負けた側には出さない。
+             two-player は同一画面なので常に出す (どちらかが必ず勝者)。
+             vs-ai は人間 = プレイヤー 1、online は localOnlinePlayer と比較。 */}
+        {gameOver &&
+          victoryInfo &&
+          winner &&
+          (gameMode === "two-player" ||
+            (gameMode === "vs-ai" && winner === 1) ||
+            (gameMode === "online" && localOnlinePlayer != null && winner === localOnlinePlayer)) && (
+            <VictoryCrackers triggerKey={winner} accentColor={victoryInfo.color} />
+          )}
 
         {/* 勝利モーダル */}
         {gameOver && victoryInfo && (
@@ -854,6 +872,15 @@ export function GamePage({
                     </span>
                     {showReachLines && reachLines.length > 0 && (
                       <Zap className="w-3 h-3 md:w-4 md:h-4 text-orange-600 flex-shrink-0" />
+                    )}
+                    {opponentDisconnected && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] md:text-xs font-medium flex-shrink-0"
+                        title="相手のプレイヤーがオフラインです"
+                      >
+                        <WifiOff className="w-3 h-3" />
+                        相手切断
+                      </span>
                     )}
                   </div>
                 )}
