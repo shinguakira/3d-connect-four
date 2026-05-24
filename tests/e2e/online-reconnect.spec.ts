@@ -46,7 +46,18 @@ test.describe("Online: sessionStorage reconnect after page reload", () => {
     // The title menu shows again.
     await expect(page.getByText("ゲームモードを選択")).toBeVisible({ timeout: 15_000 });
 
-    // ...and the stale keys have been swept away.
+    // ...and the stale keys are swept away once the async validation GET
+    // resolves. Poll instead of asserting immediately — the title menu
+    // renders synchronously from the default state machine, but the
+    // sessionStorage clear waits on /api/game/DEAD99 returning 404 which
+    // can take a moment on first compile of the dynamic route.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => sessionStorage.getItem("3dcf:online-room")),
+        { timeout: 15_000 },
+      )
+      .toBeNull();
     const after = await page.evaluate(() => ({
       room: sessionStorage.getItem("3dcf:online-room"),
       player: sessionStorage.getItem("3dcf:online-player"),

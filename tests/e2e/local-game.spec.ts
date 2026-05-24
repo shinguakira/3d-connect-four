@@ -5,8 +5,9 @@ test.describe("Local game launch", () => {
     await page.goto("/");
     await page.getByRole("button", { name: /2プレイヤー/ }).click();
 
-    // Game-page header.
-    await expect(page.getByText("3D Connect Four").first()).toBeVisible();
+    // Game-page header. React 19 hoists <title> through the body so we
+    // can't just rely on getByText(); target the heading div directly.
+    await expect(page.locator("div.font-bold").getByText("3D Connect Four")).toBeVisible();
     // Mode label shown in the header.
     await expect(page.getByText("2プレイヤー", { exact: false }).first()).toBeVisible();
 
